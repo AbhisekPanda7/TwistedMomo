@@ -1,0 +1,31 @@
+# Production profile — Spring Boot runs on Render, database is AWS RDS MySQL.
+# Every value here is sourced from an environment variable with NO fallback
+# default, so the app fails fast on startup instead of silently running with
+# a wrong/insecure value. Set these in the Render service's environment tab:
+#
+#   SPRING_DATASOURCE_URL       jdbc:mysql://<rds-endpoint>:3306/twisted_momos?useSSL=true&requireSSL=true&serverTimezone=UTC
+#   SPRING_DATASOURCE_USERNAME
+#   SPRING_DATASOURCE_PASSWORD
+#   CORS_ALLOWED_ORIGINS        https://<your-vercel-domain>
+#   JWT_SECRET                  a long, random, high-entropy string (32+ bytes) — never reuse the dev value
+#
+# If a future host (e.g. Hostinger) replaces AWS RDS, only these four datasource
+# values change — no code or migration changes required.
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+
+logging:
+  level:
+    com.twistedmomos.backend: INFO
+    org.hibernate.SQL: WARN

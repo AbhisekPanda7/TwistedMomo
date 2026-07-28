@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    default-property-inclusion: non_null
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  jpa:
+    # Open-in-view is Boot's default but is deliberately turned off here: it
+    # silently keeps a DB session open for the whole request behind a filter
+    # ordering that isn't guaranteed relative to other filters (e.g. our JWT
+    # filter runs before it), and it invites accidental N+1 queries in views.
+    # Every association a request needs is fetched explicitly instead
+    # (see UserRepository.findByEmail's join fetch).
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+# Comma-separated list of origins allowed to call this API (no trailing slashes).
+# dev  -> local Vite dev server(s)
+# prod -> the deployed Vercel frontend domain, set via CORS_ALLOWED_ORIGINS on Render
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176}
+  jwt:
+    # app.jwt.secret is intentionally NOT set here — see application-dev.yml
+    # (safe fallback) and application-prod.yml (required, no fallback).
+    access-token-expiration-ms: 900000        # 15 minutes
+    refresh-token-expiration-ms: 2592000000   # 30 days
+  upload:
+    # Local disk. NOTE: on Render this does NOT survive a redeploy (ephemeral
+    # filesystem) — fine for now, swap FileStorageService for S3-compatible
+    # object storage before this matters in production.
+    dir: ${UPLOAD_DIR:./uploads}

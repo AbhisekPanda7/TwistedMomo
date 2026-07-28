@@ -4,7 +4,10 @@
       "Bash(curl -sf http://localhost:5173)",
       "Bash(break)",
       "Read(//tmp/**)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(curl -s --max-time 15 \"https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-flyway/4.1.0/spring-boot-flyway-4.1.0.pom\")",
+      "Bash(npm install *)",
+      "Bash(node verify-admin-debug.mjs)"
     ]
   }
 }

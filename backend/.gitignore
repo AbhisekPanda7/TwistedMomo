@@ -1,0 +1,27 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Local env / secrets — never commit real credentials
+.env
+application-local.yml
+application-local.yaml
+
+# Local file uploads (dev only — see FileStorageService)
+/uploads/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

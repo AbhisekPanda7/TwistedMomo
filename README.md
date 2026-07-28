@@ -1,32 +1,33 @@
-# React + TypeScript + Vite
+# Twisted Momos
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Bold street-food momo brand — marketing site plus a full ordering system, as a monorepo.
 
-Currently, two official plugins are available:
+## Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+TwistedMomo/
+├── frontend/    React 19 + Vite + TypeScript site & ordering UI — see frontend/README.md
+├── backend/     Spring Boot 4.1 REST API — see backend/README.md
+├── .gitignore   monorepo-wide (OS/editor) ignores only — each package owns its own build-output ignores
+└── README.md    you are here
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+`frontend/` and `backend/` are each self-contained: their own dependency manifest, lockfile, `.gitignore`, and README. Nothing in one references paths inside the other — they only ever talk to each other over HTTP.
+
+## Stack
+
+**Frontend** — React 19, Vite, TypeScript, Tailwind CSS, Framer Motion, React Router. Deployed on Vercel.
+
+**Backend** — Java 21, Spring Boot 4.1, Spring Security, JWT auth, Spring Data JPA, MySQL, Flyway, MapStruct, Maven. Deployed on Render.
+
+**Database** — MySQL locally for development; AWS RDS MySQL in production. Only datasource configuration changes between environments — see `backend/README.md`.
+
+## Getting started
+
+- Frontend: `cd frontend && npm install && npm run dev` — see [`frontend/README.md`](./frontend/README.md).
+- Backend: see [`backend/README.md`](./backend/README.md).
+
+## Status
+
+- Frontend: finalized and client-approved (v1.0), now progressively wired to the live backend API as each phase ships. Login/register/account state, menu browsing, cart, checkout/order history, and a full `/admin` console (categories, menu, orders) are all live. Recently restructured from repo-root into `frontend/` as part of the monorepo cleanup ahead of deployment — see `frontend/README.md`.
+- Backend: feature-complete and hardened — Phase 0 (bootstrap), Phase 1 (auth & users), Phase 2 (catalog), Phase 3 (cart), Phase 4 (checkout & orders), Phase 5 (admin ops), and Phase 6 (hardening: refresh token rotation with reuse detection, login rate limiting, a unit test suite) all complete. See `backend/README.md` for the phase roadmap and its "Known limitations" section for what's intentionally deferred (S3 image storage, distributed rate limiting, CI).
