@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sf http://localhost:5173)",
+      "Bash(break)",
+      "Read(//tmp/**)",
+      "Bash(npm run *)"
+    ]
+  }
+}
