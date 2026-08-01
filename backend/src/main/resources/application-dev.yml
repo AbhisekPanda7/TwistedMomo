@@ -28,3 +28,11 @@ management:
   endpoint:
     health:
       show-details: always
+
+# Paths are springdoc's defaults, set explicitly so they are greppable and so
+# SecurityConfig.SWAGGER_ENDPOINTS can be matched against something concrete.
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

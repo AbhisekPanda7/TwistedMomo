@@ -29,3 +29,12 @@ logging:
   level:
     com.twistedmomos.backend: INFO
     org.hibernate.SQL: WARN
+
+# Hardcoded false, not env-var-sourced. The no-defaults rule in this file exists
+# so a *missing* value fails fast; false is already the fail-safe state here, and
+# parameterising it would let a stray env var switch the docs on in production.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
