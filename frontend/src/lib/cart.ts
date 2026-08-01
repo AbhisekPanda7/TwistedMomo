@@ -1,5 +1,5 @@
-import axios from "axios";
 import { api } from "./api";
+import { toApiError } from "./apiError";
 
 export type ApiCartItem = {
   id: number;
@@ -44,9 +44,7 @@ export async function clearCart(): Promise<ApiCart> {
   return data;
 }
 
+/** Kept for callers that only need the text; toApiError also carries the trace ID. */
 export function extractErrorMessage(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err) && typeof err.response?.data?.message === "string") {
-    return err.response.data.message;
-  }
-  return fallback;
+  return toApiError(err, fallback).message;
 }

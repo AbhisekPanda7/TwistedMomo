@@ -1,6 +1,7 @@
 import axios from "axios";
 import { clearSession, getAccessToken, getRefreshToken, storeSession } from "./tokenStorage";
 import type { AuthSession } from "./tokenStorage";
+import { newTraceparent } from "./trace";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
@@ -15,10 +16,22 @@ const refreshClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Traced too — a failing refresh is exactly the kind of logout-loop report that
+// needs a trace ID, and this instance does not share api's interceptors.
+refreshClient.interceptors.request.use((config) => {
+  config.headers.set("traceparent", newTraceparent());
+  return config;
+});
+
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
     config.headers.set("Authorization", `Bearer ${token}`);
+  }
+  // Only on the first attempt: a 401 retry below re-sends this same config, and
+  // keeping its trace ID means the retry stays part of the original trace.
+  if (!config.headers.has("traceparent")) {
+    config.headers.set("traceparent", newTraceparent());
   }
   return config;
 });
