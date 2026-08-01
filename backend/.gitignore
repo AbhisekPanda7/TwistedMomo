@@ -10,6 +10,7 @@ target/
 .classpath
 .project
 .settings/
+.factorypath
 
 # Local env / secrets — never commit real credentials
 .env
