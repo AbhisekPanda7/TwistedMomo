@@ -5,6 +5,7 @@ import com.twistedmomos.backend.dto.response.OrderResponse;
 import com.twistedmomos.backend.dto.response.OrderSummaryResponse;
 import com.twistedmomos.backend.dto.response.PageResponse;
 import com.twistedmomos.backend.service.OrderService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Every endpoint here requires ROLE_ADMIN — enforced in SecurityConfig via the /api/v1/admin/** matcher. */
+@Tag(name = "Admin — Orders", description = "Order listing and status transitions (ROLE_ADMIN)")
 @RestController
 @RequestMapping("/api/v1/admin/orders")
 @RequiredArgsConstructor

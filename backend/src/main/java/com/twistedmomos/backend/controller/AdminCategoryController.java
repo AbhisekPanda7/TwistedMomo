@@ -3,6 +3,7 @@ package com.twistedmomos.backend.controller;
 import com.twistedmomos.backend.dto.request.CategoryRequest;
 import com.twistedmomos.backend.dto.response.CategoryResponse;
 import com.twistedmomos.backend.service.CategoryService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Every endpoint here requires ROLE_ADMIN — enforced in SecurityConfig via the /api/v1/admin/** matcher. */
+@Tag(name = "Admin — Categories", description = "Category management (ROLE_ADMIN)")
 @RestController
 @RequestMapping("/api/v1/admin/categories")
 @RequiredArgsConstructor

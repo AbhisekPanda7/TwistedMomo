@@ -5,6 +5,7 @@ import com.twistedmomos.backend.dto.request.MenuItemRequest;
 import com.twistedmomos.backend.dto.response.MenuItemResponse;
 import com.twistedmomos.backend.dto.response.PageResponse;
 import com.twistedmomos.backend.service.MenuItemService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /** Every endpoint here requires ROLE_ADMIN — enforced in SecurityConfig via the /api/v1/admin/** matcher. */
+@Tag(name = "Admin — Menu", description = "Menu item management and image upload (ROLE_ADMIN)")
 @RestController
 @RequestMapping("/api/v1/admin/menu")
 @RequiredArgsConstructor
