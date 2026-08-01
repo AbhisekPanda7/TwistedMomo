@@ -111,6 +111,15 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- Tracing. This starter — not the bare micrometer-tracing-bridge-otel —
+             is what pulls spring-boot-micrometer-tracing-opentelemetry, the module
+             that actually auto-configures the Tracer and populates traceId/spanId
+             into the logging MDC. The bridge on its own registers nothing. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
+
         <!-- Dev convenience -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

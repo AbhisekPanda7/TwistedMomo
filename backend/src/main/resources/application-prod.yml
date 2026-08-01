@@ -29,6 +29,13 @@ logging:
   level:
     com.twistedmomos.backend: INFO
     org.hibernate.SQL: WARN
+  # One JSON object per line. ECS emits trace.id/span.id as first-class fields,
+  # which CloudWatch Logs Insights discovers automatically — so a request is
+  # queryable with `filter trace.id = "..."` and no regex parse step.
+  # Dev deliberately stays human-readable text; see application-dev.yml.
+  structured:
+    format:
+      console: ecs
 
 # Hardcoded false, not env-var-sourced. The no-defaults rule in this file exists
 # so a *missing* value fails fast; false is already the fail-safe state here, and
