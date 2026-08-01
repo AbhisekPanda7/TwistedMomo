@@ -1,10 +1,12 @@
 package com.twistedmomos.backend.exception;
 
+import com.twistedmomos.backend.config.CurrentTrace;
 import com.twistedmomos.backend.dto.response.ErrorResponse;
 import com.twistedmomos.backend.dto.response.ValidationErrorItem;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +19,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /** Every failure path in the API — validation, domain, auth, or unexpected — resolves to one ErrorResponse shape. */
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final CurrentTrace currentTrace;
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
@@ -92,7 +97,13 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ErrorResponse> build(
             HttpStatus status, String message, HttpServletRequest request, List<ValidationErrorItem> validationErrors) {
         ErrorResponse body = new ErrorResponse(
-                Instant.now(), status.value(), status.getReasonPhrase(), message, request.getRequestURI(), validationErrors);
+                Instant.now(),
+                status.value(),
+                status.getReasonPhrase(),
+                message,
+                request.getRequestURI(),
+                currentTrace.traceId(),
+                validationErrors);
         return ResponseEntity.status(status).body(body);
     }
 }
