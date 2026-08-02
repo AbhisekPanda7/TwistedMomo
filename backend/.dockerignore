@@ -10,4 +10,5 @@ uploads
 .project
 .DS_Store
 Dockerfile
+Dockerfile.prod
 .dockerignore
