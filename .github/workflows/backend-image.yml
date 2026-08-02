@@ -1,0 +1,83 @@
+# Builds the backend image and asks Dokploy to redeploy. The production host never
+# builds anything: it pulls an image whose tests have already passed.
+#
+# The runner does not connect to the VPS. It calls a webhook over HTTPS and
+# Dokploy pulls — which is why the box needs no inbound port for CI.
+
+name: backend image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-image.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # GHCR requires a lowercase path; the repository name is mixed case.
+  IMAGE_NAME: abhisekpanda7/twistedmomo-backend
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # The suite is Mockito-only and needs no database, so it gates the build
+      # rather than running against a deployed container.
+      - name: Run tests
+        working-directory: backend
+        run: ./mvnw -B test
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          # The VPS is x86. Matching it exactly keeps the build fast; add
+          # linux/arm64 only if the host architecture changes.
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dokploy redeploy
+        # The webhook URL is a secret: anyone holding it can trigger a deploy.
+        run: |
+          curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
+            || { echo "Dokploy webhook failed"; exit 1; }

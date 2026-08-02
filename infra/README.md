@@ -360,3 +360,38 @@ Everything a single class logged:
 ```logql
 {container=~"twistedmomos.*"} | logger =~ `.*OrderServiceImpl`
 ```
+
+## 12. Configure CI/CD
+
+The production host never builds. GitHub Actions runs the tests, builds the image,
+pushes it to GHCR, and calls a Dokploy webhook. The runner never connects to the
+VPS, which is why closing public SSH does not break deployments.
+
+**In Dokploy:**
+
+1. Open the `twistedmomos` compose service → Deployments tab.
+2. Copy the webhook URL.
+3. If the GHCR package is private, add registry credentials under
+   Settings → Registry: your GitHub username, and a PAT with `read:packages`.
+
+**In GitHub:**
+
+1. Repo → Settings → Secrets and variables → Actions.
+2. Add `DOKPLOY_WEBHOOK_URL` with the URL from above. Treat it as a secret —
+   anyone holding it can trigger a deploy.
+
+`GITHUB_TOKEN` is provided automatically; the workflow requests `packages: write`
+for it and needs no PAT for pushing.
+
+**Flow**
+
+```
+push to main (backend/**)
+  → tests run (Mockito, no database)
+  → image built, pushed as :latest and :<commit-sha>
+  → webhook → Dokploy pulls :latest and redeploys
+```
+
+**Rolling back.** Set `BACKEND_IMAGE` to a previous `:<commit-sha>` in the Dokploy
+environment and redeploy. This is why both tags are pushed — a rollback is a
+configuration change, not a rebuild.
