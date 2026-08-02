@@ -18,9 +18,11 @@ TwistedMomo/
 
 **Frontend** — React 19, Vite, TypeScript, Tailwind CSS, Framer Motion, React Router. Deployed on Vercel.
 
-**Backend** — Java 21, Spring Boot 4.1, Spring Security, JWT auth, Spring Data JPA, MySQL, Flyway, MapStruct, Maven. Deployed on Render.
+**Backend** — Java 21, Spring Boot 4.1, Spring Security, JWT auth, Spring Data JPA, MySQL, Flyway, MapStruct, Maven. Deployed to a Hostinger VPS managed by Dokploy and reached publicly through a Cloudflare Tunnel, so no inbound port is open on the host.
 
-**Database** — MySQL locally for development; AWS RDS MySQL in production. Only datasource configuration changes between environments — see `backend/README.md`.
+**Database** — MySQL locally for development; in production, MySQL runs as a container alongside the API with no published port. Only datasource configuration changes between environments — see `backend/README.md`.
+
+**Infrastructure** — lives in `infra/`: the provisioning runbook is [`infra/README.md`](./infra/README.md) and the access and threat model is [`infra/SECURITY.md`](./infra/SECURITY.md). Logs ship to Loki and are searchable in Grafana by trace ID.
 
 ## Getting started
 
