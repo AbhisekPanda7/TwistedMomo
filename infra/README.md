@@ -314,3 +314,49 @@ Verify the API answers publicly:
 curl -fsS https://api.<your-domain>/actuator/health
 # {"status":"UP"}
 ```
+
+## 11. Deploy the observability stack
+
+1. Dokploy → same project → Create Service → **Compose**.
+2. Compose path `infra/observability/compose.yml`.
+3. Environment tab → paste `infra/observability/.env.example`, replacing
+   `change-me-long-random` with `openssl rand -base64 24`.
+4. Deploy.
+
+**Reaching Grafana.** It binds to loopback, so it is reached through an SSH tunnel
+over Tailscale:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 deploy@twistedmomos-prod
+# then open http://localhost:3001
+```
+
+Add the data source: Connections → Add data source → **Loki** → URL
+`http://loki:3100` → Save & test.
+
+## Finding a request by its trace ID
+
+A user reporting a failure quotes the `Ref:` shown in the UI — that is the trace
+ID. The same value appears in the `X-Trace-Id` response header and in the
+`traceId` field of the error envelope.
+
+In Grafana → Explore → Loki:
+
+```logql
+{container=~"twistedmomos.*"} | traceId = `4bf92f3577b34da6a3ce929d0e0e4736`
+```
+
+That returns every log line for that one request, across every class that logged
+during it.
+
+All errors in the last hour:
+
+```logql
+{container=~"twistedmomos.*", level="ERROR"}
+```
+
+Everything a single class logged:
+
+```logql
+{container=~"twistedmomos.*"} | logger =~ `.*OrderServiceImpl`
+```
