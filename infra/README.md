@@ -303,16 +303,6 @@ Note that Tailscale SSH is served by `tailscaled`, not by `sshd`, so it keeps
 working even while `ssh.service` is failed. That is why these failures cost
 redundancy rather than access — and why they are easy to miss.
 
-Verify it is listening on the Tailscale IP and nowhere else:
-
-```bash
-ss -tlnp | grep :22
-# LISTEN 0 128 100.x.y.z:22 0.0.0.0:*
-```
-
-If `0.0.0.0:22` appears, the `ListenAddress` line did not take effect. Fix it
-before continuing.
-
 ## 6. Configure the firewall
 
 ```bash
@@ -341,6 +331,46 @@ ufw status verbose
 # Anywhere on tailscale0    ALLOW IN    Anywhere    # tailnet
 ```
 
+**`ufw` alone does not hold once Docker is installed.** Docker inserts its own
+`DOCKER-USER` iptables chain, which is evaluated *before* ufw's rules, so any
+container that publishes a port reaches the internet regardless of what `ufw status`
+claims. Dokploy's Traefik publishes 80 and 443, and the panel publishes 3000 —
+observed open from off-network immediately after step 8, with ufw active and
+`deny 3000` in place.
+
+Close them in the chain Docker actually consults, after step 8 has installed Docker:
+
+```bash
+iptables -I DOCKER-USER -i eth0 -p tcp --dport 3000 -j DROP
+iptables -I DOCKER-USER -i eth0 -p tcp --dport 80 -j DROP
+iptables -I DOCKER-USER -i eth0 -p tcp --dport 443 -j DROP
+```
+
+These are not persistent on their own:
+
+```bash
+apt install -y iptables-persistent   # answer yes to saving current rules
+netfilter-persistent save
+```
+
+Verify from a machine **not** on the tailnet — this is the check that matters, and
+it must be run from off-network because everything looks closed from inside:
+
+```bash
+nc -vz -w 5 <vps-public-ip> 22
+nc -vz -w 5 <vps-public-ip> 80
+nc -vz -w 5 <vps-public-ip> 443
+nc -vz -w 5 <vps-public-ip> 3000
+```
+
+All four must time out. Re-run after any reboot and after any Dokploy upgrade —
+a republished port silently reopens the hole.
+
+Once the Cloudflare Tunnel exists (step 9), Traefik does not need 80 and 443
+published at all: `cloudflared` reaches it over the internal Docker network. The
+DROP rules hold the line until then; unpublishing the ports in Dokploy's Traefik
+configuration is the cleaner end state.
+
 ## 7. Install Docker
 
 ```bash
@@ -360,22 +390,32 @@ The second command must succeed without `sudo` inside it — that confirms the
 
 ## 8. Install Dokploy
 
-Dokploy's installer sets up Docker Swarm, a Traefik reverse proxy, and its own
-Postgres and Redis, then serves a panel on port 3000.
+Dokploy's installer sets up Docker Swarm, a Traefik reverse proxy and its own
+Postgres, then serves a panel on port 3000. Run it as root.
 
 ```bash
 curl -sSL https://dokploy.com/install.sh | sh
 ```
 
-Verify the services are running:
+Verify. Swarm services and plain containers are listed separately, and Traefik is
+**not** a swarm service — checking only `docker service ls` makes it look like the
+install failed:
 
 ```bash
 docker service ls
-# dokploy, dokploy-traefik, dokploy-postgres, dokploy-redis
+# dokploy, dokploy-postgres
+
+docker ps --format '{{.Names}}\t{{.Status}}'
+# dokploy-traefik, plus the dokploy and dokploy-postgres tasks
 ```
 
-**Claim the admin account immediately.** The first visitor to the panel becomes the
-administrator, and the panel is reachable by anyone on your tailnet:
+Observed on v0.29.13: there is no `dokploy-redis`. Do not go hunting for it.
+
+**Claim the admin account immediately — before anything else.** The first visitor
+to the panel becomes the administrator, and at this point in the runbook port 3000
+is still reachable from the internet (see step 6: Docker bypasses ufw, and the DROP
+rules have not been added yet). Whoever loads it first owns every secret this box
+will ever hold.
 
 ```
 http://<tailscale-ip>:3000
@@ -384,13 +424,17 @@ http://<tailscale-ip>:3000
 1. Create the admin user with a strong, unique password.
 2. Enable 2FA under Settings → Profile.
 
-Confirm the panel is *not* reachable publicly. From a machine that is **not** on
-the tailnet:
+Then apply the `DOCKER-USER` DROP rules from step 6 and confirm the panel is *not*
+reachable publicly, from a machine **not** on the tailnet:
 
 ```bash
 curl --max-time 10 http://<vps-public-ip>:3000
 # must time out
 ```
+
+If the panel was already claimed when you arrived, treat the install as
+compromised: wipe Dokploy and reinstall rather than reasoning about what an
+attacker did or did not do.
 
 ## 9. Create the Cloudflare Tunnel
 
