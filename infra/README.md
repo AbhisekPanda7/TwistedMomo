@@ -122,11 +122,37 @@ usermod -aG sudo admin-deploy
 Tailscale SSH, which handles authentication itself. There is no password to guess
 and no key file to rotate.
 
+That has a consequence worth stating plainly: **`sudo` can never succeed for this
+account**, because there is no password for it to accept. Grant passwordless sudo
+instead — still as root:
+
+```bash
+echo 'admin-deploy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/admin-deploy
+chmod 0440 /etc/sudoers.d/admin-deploy
+visudo -c
+```
+
+`visudo -c` must report `parsed OK` for every file it lists. A malformed sudoers
+file breaks `sudo` for every account at once, so do not skip it.
+
+Anyone holding a shell as `admin-deploy` therefore holds root without a second
+prompt. That is the accepted trade: reaching that shell already means passing the
+Tailscale ACL with its 12-hour re-authentication, so a password here would guard a
+door that already takes two keys — and the nightly backup in step 13 runs
+unattended and cannot answer a prompt at all.
+
 Verify:
 
 ```bash
 id admin-deploy
 # uid=1000(admin-deploy) gid=1000(admin-deploy) groups=1000(admin-deploy),27(sudo)
+```
+
+From your laptop, once step 4 has put this host on the tailnet:
+
+```bash
+ssh admin-deploy@twistedmomos-prod 'sudo whoami'
+# root
 ```
 
 ## 4. Install and join Tailscale
