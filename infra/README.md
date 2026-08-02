@@ -257,3 +257,60 @@ the tailnet:
 curl --max-time 10 http://<vps-public-ip>:3000
 # must time out
 ```
+
+## 9. Create the Cloudflare Tunnel
+
+The tunnel is what lets the box serve public traffic with no inbound port. The
+connector dials out; Cloudflare pushes requests down that connection.
+
+**In the Cloudflare dashboard:**
+
+1. Add the Hostinger-bundled domain to Cloudflare (free plan) and change the
+   nameservers at Hostinger to the two Cloudflare provides. Wait for the zone to
+   report Active.
+2. Zero Trust → Networks → Tunnels → **Create a tunnel** → type **Cloudflared**.
+3. Name it `twistedmomos-prod`.
+4. Copy the token from the install command shown. This is the value of
+   `CLOUDFLARE_TUNNEL_TOKEN`. **Do not run the install command** — the connector
+   runs as a container in the application stack, not as a host service.
+5. Public Hostnames → **Add a public hostname**:
+   - Subdomain `api`, domain your bundled domain
+   - Service type **HTTP**, URL `backend:8080`
+
+   The connector resolves `backend` on the Docker network. Traffic between
+   Cloudflare and the connector is encrypted by the tunnel itself, so plain HTTP
+   on this leg is correct — there is no certificate to obtain or renew on the
+   origin.
+
+**No DNS record needs creating by hand.** The tunnel creates a proxied CNAME for
+the hostname automatically.
+
+## 10. Deploy the application stack
+
+1. Dokploy → Create Project → `twistedmomos`.
+2. Inside it → Create Service → **Compose**.
+3. Provider GitHub, repo `AbhisekPanda7/TwistedMomo`, branch `main`, compose path
+   `infra/app/compose.yml`.
+4. Environment tab → paste `infra/app/.env.example` and replace every `change-me`.
+   Generate secrets with:
+   ```bash
+   openssl rand -base64 48
+   ```
+5. Set `CLOUDFLARE_TUNNEL_TOKEN` to the token from step 9.
+6. Deploy. Watch the logs until Flyway reports the migrations applied and Boot
+   logs `Started BackendApplication`.
+
+Verify the tunnel connected:
+
+```bash
+ssh deploy@twistedmomos-prod
+docker logs $(docker ps --filter name=cloudflared --format '{{.Names}}' | head -1) 2>&1 | tail -20
+# "Registered tunnel connection" — usually four, one per Cloudflare colo
+```
+
+Verify the API answers publicly:
+
+```bash
+curl -fsS https://api.<your-domain>/actuator/health
+# {"status":"UP"}
+```

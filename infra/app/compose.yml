@@ -1,0 +1,90 @@
+# Deployed by Dokploy, which owns Traefik and the dokploy-network overlay.
+#
+# No service in this file publishes a port to the public interface. Public traffic
+# reaches the backend only through cloudflared, which dials outward to Cloudflare
+# and receives requests down that connection.
+
+services:
+  # Outbound-only connector. Cloudflare pushes requests down a connection this
+  # container opened, so the host needs no inbound port and the origin IP is
+  # never contacted directly.
+  cloudflared:
+    # Pinned deliberately: :latest can change silently and break tunnel auth,
+    # which takes the site down with no code change to explain it.
+    image: cloudflare/cloudflared:2026.2.0
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - dokploy-network
+    depends_on:
+      - backend
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - internal
+    # No ports section, deliberately: the database is reachable from the backend
+    # on the internal network and from nowhere else — not the host, not Traefik,
+    # not another stack.
+    healthcheck:
+      # The backend fails fast on an unreachable datasource, so it must not start
+      # until MySQL is accepting connections — a running container is not a ready
+      # server.
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  backend:
+    image: ${BACKEND_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      # Uploads survive redeploys on a named volume. This is the single-box
+      # stand-in for object storage; it is backed up by infra/bootstrap/backup.sh.
+      - backend-uploads:/app/uploads
+    networks:
+      - internal
+      - dokploy-network
+    labels:
+      # Read by Promtail (infra/observability) to select which containers to scrape.
+      logging: "promtail"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  mysql-data:
+  backend-uploads:
+
+networks:
+  internal:
+    driver: overlay
+    # MySQL and the backend only. Not attachable, so another stack cannot join it.
+    attachable: false
+  dokploy-network:
+    external: true
