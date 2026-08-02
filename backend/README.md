@@ -152,7 +152,7 @@ Profile is selected via `SPRING_PROFILES_ACTIVE` (defaults to `dev` if unset —
 | `SPRING_DATASOURCE_URL` | `jdbc:mysql://mysql:3306/twisted_momos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
 | `SPRING_DATASOURCE_USERNAME` | application DB user (not root) |
 | `SPRING_DATASOURCE_PASSWORD` | that user's password |
-| `CORS_ALLOWED_ORIGINS` | `https://<your-vercel-domain>` |
+| `CORS_ALLOWED_ORIGINS` | `https://twistedmomos.tech` |
 | `JWT_SECRET` | long random string (32+ bytes), e.g. `openssl rand -base64 48` |
 | `PORT` | optional; defaults to `8080` |
 

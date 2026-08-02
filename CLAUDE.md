@@ -6,7 +6,7 @@ Guidance for Claude Code working in this repository.
 
 Twisted Momos — a street-food momo brand's marketing site plus a full ordering system. Monorepo with two independently deployable packages:
 
-- `frontend/` — React 19 + Vite + TypeScript site and ordering UI. Deployed on Vercel (Root Directory = `frontend/`).
+- `frontend/` — React 19 + Vite + TypeScript site and ordering UI. Built to static assets and served by nginx on the same VPS as the backend, reached at `twistedmomos.tech` through the Cloudflare Tunnel.
 - `backend/` — Java 21 + Spring Boot 4.1 REST API. Deployed to a Hostinger VPS managed by Dokploy, reached publicly through a Cloudflare Tunnel; MySQL runs as a container in the same stack. Infrastructure lives in `infra/` — see `infra/README.md` for the provisioning runbook and `infra/SECURITY.md` for the access model.
 
 They are self-contained: separate dependency manifests, lockfiles, `.gitignore`s, and READMEs. **Nothing in one references a path inside the other** — they only ever talk over HTTP. Preserve this when adding files; do not introduce shared build config, cross-package imports, or a root-level `package.json`.
@@ -38,7 +38,7 @@ Backend needs a MySQL 8.x instance on `localhost:3306` (`root`/`root` by default
 
 Running a single backend test: `./mvnw test -Dtest=CartServiceImplTest`.
 
-CI covers the **backend only** (`.github/workflows/backend-image.yml`, on push to `main` touching `backend/**`): it runs `./mvnw test`, builds the image, and triggers a Dokploy redeploy. The frontend has no pipeline. Before claiming work is done, run `./mvnw test` and `npm run build` yourself rather than waiting on CI.
+CI is one workflow per package, both on push to `main` touching that package's directory: `backend-image.yml` runs `./mvnw test`, and `frontend-image.yml` runs `npm run lint` and `npm run build`. Each then builds its image, pushes to GHCR, and triggers the same Dokploy redeploy. Before claiming work is done, run `./mvnw test` and `npm run build` yourself rather than waiting on CI.
 
 ## Architecture
 

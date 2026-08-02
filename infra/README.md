@@ -21,9 +21,9 @@ Browser ──https──> Cloudflare edge (WAF, DDoS, TLS, rate limiting)
               ┌─────────┴──────────────────────────────┐
               │ Hostinger VPS — Ubuntu 24.04, 8 GB     │
               │                                        │
-              │  cloudflared ──→ traefik (plain HTTP)  │
-              │                    ├─ backend :8080    │
-              │                    └─ mysql (no ports) │
+              │  cloudflared ──┬─ frontend :80        │
+              │                ├─ backend  :8080      │
+              │                └─ mysql (no ports)    │
               │  loki / promtail / grafana             │
               │  Dokploy panel :3000 ── tailnet only   │
               │                                        │
@@ -443,27 +443,40 @@ connector dials out; Cloudflare pushes requests down that connection.
 
 **In the Cloudflare dashboard:**
 
-1. Add the Hostinger-bundled domain to Cloudflare (free plan) and change the
-   nameservers at Hostinger to the two Cloudflare provides. Wait for the zone to
-   report Active.
+1. Add `twistedmomos.tech` to Cloudflare (free plan) and change the nameservers at
+   Hostinger to the two Cloudflare provides. Wait for the zone to report Active.
+
+   Cloudflare imports the registrar's existing records, which for a fresh
+   Hostinger domain means an `A` record for the apex pointing at a parking IP and
+   a `CNAME` for `www`. Delete the apex `A` record — step 5 below replaces it.
 2. Zero Trust → Networks → Tunnels → **Create a tunnel** → type **Cloudflared**.
 3. Name it `twistedmomos-prod`.
 4. Copy the token from the install command shown. This is the value of
    `CLOUDFLARE_TUNNEL_TOKEN`. **Do not run the install command** — the connector
    runs as a container in the application stack, not as a host service.
-5. Public Hostnames → **Add a public hostname**:
-   - Subdomain `api`, domain your bundled domain
-   - Service type **HTTP**, URL `backend:8080`
+5. Public Hostnames → **Add a public hostname**, twice — one per service:
 
-   The connector resolves `backend` on the Docker network. Traffic between
-   Cloudflare and the connector is encrypted by the tunnel itself, so plain HTTP
-   on this leg is correct — there is no certificate to obtain or renew on the
-   origin.
+   | Subdomain | Domain | Type | URL |
+   |---|---|---|---|
+   | *(blank)* | `twistedmomos.tech` | HTTP | `frontend:80` |
+   | `api` | `twistedmomos.tech` | HTTP | `backend:8080` |
+
+   Leaving the subdomain blank serves the apex. Add a third for `www` if you want
+   it to resolve.
+
+   The connector resolves `frontend` and `backend` by service name on the Docker
+   network. Traffic between Cloudflare and the connector is encrypted by the
+   tunnel itself, so plain HTTP on this leg is correct — there is no certificate
+   to obtain or renew on the origin.
 
 **No DNS record needs creating by hand.** The tunnel creates a proxied CNAME for
-the hostname automatically.
+each hostname automatically.
 
 ## 10. Deploy the application stack
+
+Both images must exist in GHCR before this will deploy — nothing is built on the
+host. If neither workflow has run yet, publish them first: Actions → *backend
+image* → **Run workflow**, and the same for *frontend image*.
 
 1. Dokploy → Create Project → `twistedmomos`.
 2. Inside it → Create Service → **Compose**.
@@ -474,6 +487,9 @@ the hostname automatically.
    ```bash
    openssl rand -base64 48
    ```
+   `SPRING_DATASOURCE_PASSWORD` must be **identical** to `MYSQL_PASSWORD`. They
+   are two names for one credential, and a mismatch surfaces as a Flyway
+   connection failure at startup rather than as anything mentioning passwords.
 5. Set `CLOUDFLARE_TUNNEL_TOKEN` to the token from step 9.
 6. Deploy. Watch the logs until Flyway reports the migrations applied and Boot
    logs `Started BackendApplication`.
@@ -486,12 +502,23 @@ docker logs $(docker ps --filter name=cloudflared --format '{{.Names}}' | head -
 # "Registered tunnel connection" — usually four, one per Cloudflare colo
 ```
 
-Verify the API answers publicly:
+Verify both hostnames answer publicly:
 
 ```bash
-curl -fsS https://api.<your-domain>/actuator/health
+curl -fsS https://api.twistedmomos.tech/actuator/health
 # {"status":"UP"}
+
+curl -sS -o /dev/null -w '%{http_code}\n' https://twistedmomos.tech/
+# 200
+
+curl -sS -o /dev/null -w '%{http_code}\n' https://twistedmomos.tech/admin/orders
+# 200 — nginx serves index.html for unknown paths so React Router can route them.
+# A 404 here means the SPA fallback is missing from the frontend image.
 ```
+
+Then load `https://twistedmomos.tech` in a browser and confirm the app reaches the
+API — the base URL is compiled into the bundle, so a wrong one shows as requests
+to the wrong host in the network tab rather than as a build failure.
 
 ## 11. Deploy the observability stack
 

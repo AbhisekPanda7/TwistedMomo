@@ -16,7 +16,7 @@ TwistedMomo/
 
 ## Stack
 
-**Frontend** — React 19, Vite, TypeScript, Tailwind CSS, Framer Motion, React Router. Deployed on Vercel.
+**Frontend** — React 19, Vite, TypeScript, Tailwind CSS, Framer Motion, React Router. Built to static assets and served by nginx on the same VPS as the API, reached at `twistedmomos.tech` through the Cloudflare Tunnel.
 
 **Backend** — Java 21, Spring Boot 4.1, Spring Security, JWT auth, Spring Data JPA, MySQL, Flyway, MapStruct, Maven. Deployed to a Hostinger VPS managed by Dokploy and reached publicly through a Cloudflare Tunnel, so no inbound port is open on the host.
 
