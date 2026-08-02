@@ -114,8 +114,8 @@ Running everything as root means any container escape or careless command is
 immediately fatal. Create an unprivileged user that day-to-day work happens as:
 
 ```bash
-adduser --disabled-password --gecos "" deploy
-usermod -aG sudo deploy
+adduser --disabled-password --gecos "" admin-deploy
+usermod -aG sudo admin-deploy
 ```
 
 `--disabled-password` sets no password: this account is reached only through
@@ -125,8 +125,8 @@ and no key file to rotate.
 Verify:
 
 ```bash
-id deploy
-# uid=1000(deploy) gid=1000(deploy) groups=1000(deploy),27(sudo)
+id admin-deploy
+# uid=1000(admin-deploy) gid=1000(admin-deploy) groups=1000(admin-deploy),27(sudo)
 ```
 
 ## 4. Install and join Tailscale
@@ -160,7 +160,7 @@ tailnet):
 
 ```bash
 tailscale status | grep twistedmomos-prod
-ssh deploy@twistedmomos-prod 'echo tailscale ssh works'
+ssh admin-deploy@twistedmomos-prod 'echo tailscale ssh works'
 ```
 
 Do not proceed until that last command succeeds. Step 5 removes public SSH, and if
@@ -249,18 +249,18 @@ ufw status verbose
 
 ```bash
 curl -fsSL https://get.docker.com | sh
-usermod -aG docker deploy
+usermod -aG docker admin-deploy
 ```
 
 Verify:
 
 ```bash
 docker --version
-sudo -u deploy docker ps
+sudo -u admin-deploy docker ps
 ```
 
 The second command must succeed without `sudo` inside it — that confirms the
-`deploy` user's group membership took effect. If it fails, log out and back in.
+`admin-deploy` user's group membership took effect. If it fails, log out and back in.
 
 ## 8. Install Dokploy
 
@@ -341,7 +341,7 @@ the hostname automatically.
 Verify the tunnel connected:
 
 ```bash
-ssh deploy@twistedmomos-prod
+ssh admin-deploy@twistedmomos-prod
 docker logs $(docker ps --filter name=cloudflared --format '{{.Names}}' | head -1) 2>&1 | tail -20
 # "Registered tunnel connection" — usually four, one per Cloudflare colo
 ```
@@ -365,7 +365,7 @@ curl -fsS https://api.<your-domain>/actuator/health
 over Tailscale:
 
 ```bash
-ssh -L 3001:127.0.0.1:3001 deploy@twistedmomos-prod
+ssh -L 3001:127.0.0.1:3001 admin-deploy@twistedmomos-prod
 # then open http://localhost:3001
 ```
 
@@ -439,8 +439,8 @@ configuration change, not a rebuild.
 Copy the script to the box and schedule it:
 
 ```bash
-scp infra/bootstrap/backup.sh deploy@twistedmomos-prod:/tmp/
-ssh deploy@twistedmomos-prod
+scp infra/bootstrap/backup.sh admin-deploy@twistedmomos-prod:/tmp/
+ssh admin-deploy@twistedmomos-prod
 sudo mv /tmp/backup.sh /usr/local/bin/backup.sh
 sudo chmod +x /usr/local/bin/backup.sh
 
@@ -468,7 +468,7 @@ result somewhere that reflects the fact that it contains every secret.
 a backup. Pull them to a machine on the tailnet:
 
 ```bash
-rsync -avz deploy@twistedmomos-prod:/opt/twistedmomos/backups/ ./backups/
+rsync -avz admin-deploy@twistedmomos-prod:/opt/twistedmomos/backups/ ./backups/
 ```
 
 Or configure an S3-compatible destination in Dokploy (Backblaze B2's free tier is
@@ -477,7 +477,7 @@ ample at this size).
 **Restoring the database.**
 
 ```bash
-ssh deploy@twistedmomos-prod
+ssh admin-deploy@twistedmomos-prod
 CONTAINER=$(docker ps --filter name=mysql --format '{{.Names}}' | head -1)
 gunzip -c /opt/twistedmomos/backups/twisted_momos-YYYYMMDD-HHMMSS.sql.gz \
   | docker exec -i "$CONTAINER" sh -c 'exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'

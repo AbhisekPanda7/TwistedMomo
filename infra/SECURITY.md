@@ -17,7 +17,7 @@ close.
 |---|---|---|---|
 | SSH reachability | `sshd` binds to the Tailscale IP only | `ufw` denies public inbound | Internet-wide SSH scanning; a flushed firewall still leaves sshd unreachable publicly |
 | SSH authentication | Tailscale ACL decides who connects | `PasswordAuthentication no`, `PermitRootLogin no` | Credential stuffing, brute force, a leaked password |
-| Session lifetime | ACL `check` mode re-authenticates periodically | Non-root `deploy` user only | A stolen laptop granting permanent root |
+| Session lifetime | ACL `check` mode re-authenticates periodically | Non-root `admin-deploy` user only | A stolen laptop granting permanent root |
 | Public web | Tunnel is outbound-only | `ufw` denies public inbound | Direct-to-origin requests bypassing the WAF |
 | Origin identity | Origin is never contacted directly | Cloudflare proxy hides the IP | IP leaks via DNS history or certificate logs |
 | Database | No `ports:` mapping at all | Isolated overlay network | Reaching MySQL from the host or another stack |
@@ -99,8 +99,8 @@ else** — not your laptop, not the Dokploy panel, not Grafana:
       "checkPeriod": "12h",
       "src":         ["autogroup:member"],
       "dst":         ["tag:prod"],
-      // They land as the unprivileged deploy user. Never root.
-      "users":       ["deploy"]
+      // They land as the unprivileged admin-deploy user. Never root.
+      "users":       ["admin-deploy"]
     }
   ]
 }
@@ -111,7 +111,7 @@ else** — not your laptop, not the Dokploy panel, not Grafana:
 Have them confirm SSH works and the panel does not:
 
 ```bash
-ssh deploy@twistedmomos-prod          # succeeds, after a browser re-auth prompt
+ssh admin-deploy@twistedmomos-prod          # succeeds, after a browser re-auth prompt
 curl --max-time 5 http://twistedmomos-prod:3000   # must time out
 ```
 
@@ -132,5 +132,5 @@ does the job:
 |---|---|
 | Deploy code | GitHub repository write access — pushing to `main` triggers the pipeline |
 | Read logs | A Grafana user account of their own |
-| Get a shell | Tailscale ACL, port 22, `deploy` user |
+| Get a shell | Tailscale ACL, port 22, `admin-deploy` user |
 | Read every secret | **Owner only.** Do not share the Dokploy panel. |
