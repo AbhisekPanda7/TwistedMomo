@@ -395,3 +395,64 @@ push to main (backend/**)
 **Rolling back.** Set `BACKEND_IMAGE` to a previous `:<commit-sha>` in the Dokploy
 environment and redeploy. This is why both tags are pushed — a rollback is a
 configuration change, not a rebuild.
+
+## 13. Configure backups
+
+Copy the script to the box and schedule it:
+
+```bash
+scp infra/bootstrap/backup.sh deploy@twistedmomos-prod:/tmp/
+ssh deploy@twistedmomos-prod
+sudo mv /tmp/backup.sh /usr/local/bin/backup.sh
+sudo chmod +x /usr/local/bin/backup.sh
+
+sudo crontab -e
+# 30 2 * * * /usr/local/bin/backup.sh >> /var/log/twistedmomos-backup.log 2>&1
+```
+
+Run it once by hand and confirm the output before trusting the schedule:
+
+```bash
+sudo /usr/local/bin/backup.sh
+ls -lh /opt/twistedmomos/backups/
+```
+
+**What is backed up.** The database and the uploads volume. Logs are excluded —
+they expire after 30 days by design — and Grafana dashboards are trivial to
+recreate.
+
+**Dokploy's own database is not covered by this script.** It holds every
+environment variable in plaintext, so losing it means rebuilding all service
+configuration by hand. Enable Dokploy's own backup feature for it, and store the
+result somewhere that reflects the fact that it contains every secret.
+
+**Getting copies off the box.** A backup on the same disk as the database is not
+a backup. Pull them to a machine on the tailnet:
+
+```bash
+rsync -avz deploy@twistedmomos-prod:/opt/twistedmomos/backups/ ./backups/
+```
+
+Or configure an S3-compatible destination in Dokploy (Backblaze B2's free tier is
+ample at this size).
+
+**Restoring the database.**
+
+```bash
+ssh deploy@twistedmomos-prod
+CONTAINER=$(docker ps --filter name=mysql --format '{{.Names}}' | head -1)
+gunzip -c /opt/twistedmomos/backups/twisted_momos-YYYYMMDD-HHMMSS.sql.gz \
+  | docker exec -i "$CONTAINER" sh -c 'exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+```
+
+Flyway will find the schema already at the recorded version and apply nothing.
+
+**Restoring uploads.**
+
+```bash
+VOLUME=$(docker volume ls --format '{{.Name}}' | grep backend-uploads | head -1)
+docker run --rm -v "$VOLUME":/data -v /opt/twistedmomos/backups:/backup alpine:3.21 \
+  tar xzf /backup/uploads-YYYYMMDD-HHMMSS.tar.gz -C /data
+```
+
+**Test a restore quarterly.** A backup that has never been restored is a guess.
