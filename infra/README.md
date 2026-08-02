@@ -214,11 +214,40 @@ systemctl disable --now ssh.socket
 systemctl enable ssh.service
 ```
 
+**Second, remove the boot-time bind race.** Binding to the Tailscale address makes
+sshd depend on an interface that does not exist early in boot. `tailscaled` reports
+started before `tailscale0` has an address, so ordering the unit after it is *not*
+enough — sshd loses the race and dies with `Bind to port 22 on 100.x.y.z failed:
+Cannot assign requested address`. Allowing a non-local bind removes the race
+outright rather than retrying around it:
+
+```bash
+echo 'net.ipv4.ip_nonlocal_bind=1' > /etc/sysctl.d/99-nonlocal-bind.conf
+sysctl --system | grep -i nonlocal
+```
+
+Add ordering and a retry as the second line of defence. Note the empty
+`RestartPreventExitStatus=`: the vendor unit ships `RestartPreventExitStatus=255`,
+and sshd exits **255** on bind failure — so without clearing it, `Restart=` is
+silently inert and no retry ever happens.
+
+```bash
+mkdir -p /etc/systemd/system/ssh.service.d
+```
+
+```bash
+printf '[Unit]\nAfter=tailscaled.service network-online.target\nWants=network-online.target\n\n[Service]\nRestartPreventExitStatus=\nRestart=on-failure\nRestartSec=5s\n' > /etc/systemd/system/ssh.service.d/10-after-tailscale.conf
+```
+
+```bash
+systemctl daemon-reload
+```
+
 Then bind sshd to the tailnet:
 
 ```bash
 TS_IP=$(tailscale ip -4)
-printf '\n# Bind to the Tailscale interface only — never the public one.\nListenAddress %s\n' "$TS_IP" >> /etc/ssh/sshd_config
+printf '\nListenAddress %s\n' "$TS_IP" >> /etc/ssh/sshd_config
 
 sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/'          /etc/ssh/sshd_config
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -229,9 +258,50 @@ sshd -t && systemctl restart ssh.service
 `sshd -t` validates the configuration before the restart. **Do not skip it** — a
 syntax error plus a restart means sshd fails to come back and you are locked out.
 
+**Third, verify the effective config rather than the file.** `/etc/ssh/sshd_config`
+begins with `Include /etc/ssh/sshd_config.d/*.conf`, and in OpenSSH **the first
+match wins** — so for included files a *lower* number beats a higher one, the
+opposite of most `.d` conventions. Cloud images ship
+`50-cloud-init.conf` containing `PasswordAuthentication yes`, which silently beats
+the line the `sed` above just wrote:
+
+```bash
+sshd -T | grep -iE 'passwordauthentication|kbdinteractive|permitrootlogin'
+```
+
+All three must read `no`. If `passwordauthentication` reads `yes`, find the winner
+and fix it at the source:
+
+```bash
+grep -rn PasswordAuthentication /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
+sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config.d/50-cloud-init.conf
+sshd -t && systemctl restart ssh.service
+```
+
+Stop cloud-init reinstating it on the next boot:
+
+```bash
+echo 'ssh_pwauth: false' > /etc/cloud/cloud.cfg.d/99-disable-pwauth.cfg
+```
+
 Keep the Hostinger browser console open while running this. It is an out-of-band
 connection to the VM that works when sshd is stopped and the firewall is closed,
 which is what makes this step recoverable rather than a one-way door.
+
+**Verify across a reboot, not just a restart.** Every failure mode above appears
+only at boot; `systemctl restart` succeeds regardless and proves nothing:
+
+```bash
+reboot
+# wait ~90s, then from your laptop:
+ssh admin-deploy@twistedmomos-prod 'systemctl is-active ssh.service; sudo ss -tlnp | grep :22'
+```
+
+Want `active` and `LISTEN ... 100.x.y.z:22` — and never `0.0.0.0:22`.
+
+Note that Tailscale SSH is served by `tailscaled`, not by `sshd`, so it keeps
+working even while `ssh.service` is failed. That is why these failures cost
+redundancy rather than access — and why they are easy to miss.
 
 Verify it is listening on the Tailscale IP and nowhere else:
 
