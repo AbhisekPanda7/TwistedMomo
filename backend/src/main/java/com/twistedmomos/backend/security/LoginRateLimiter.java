@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  * instances, swap the backing map for a shared store; the tracking logic here
  * would stay the same.
  */
+@Slf4j
 @Component
 public class LoginRateLimiter {
 
@@ -30,12 +32,16 @@ public class LoginRateLimiter {
     public void checkAllowed(String email) {
         Attempts attempts = attemptsByEmail.get(normalize(email));
         if (attempts != null && attempts.lockedUntil() != null && attempts.lockedUntil().isAfter(Instant.now())) {
+            // No email in the message — the count and remaining lockout are what an
+            // operator needs to spot a brute-force attempt in progress.
+            log.warn("Login blocked — account locked out: attempts={} remainingSeconds={}",
+                    attempts.count(), Duration.between(Instant.now(), attempts.lockedUntil()).toSeconds());
             throw new TooManyAttemptsException("Too many failed login attempts. Please try again later.");
         }
     }
 
     public void recordFailure(String email) {
-        attemptsByEmail.compute(normalize(email), (key, existing) -> {
+        Attempts updated = attemptsByEmail.compute(normalize(email), (key, existing) -> {
             Instant now = Instant.now();
             if (existing == null || existing.windowStart().plus(WINDOW).isBefore(now)) {
                 return new Attempts(1, now, null);
@@ -44,6 +50,13 @@ public class LoginRateLimiter {
             Instant lockedUntil = count >= MAX_ATTEMPTS ? now.plus(LOCKOUT) : null;
             return new Attempts(count, existing.windowStart(), lockedUntil);
         });
+
+        if (updated.lockedUntil() != null) {
+            log.warn("Account locked out after repeated failures: attempts={} lockoutMinutes={}",
+                    updated.count(), LOCKOUT.toMinutes());
+        } else {
+            log.warn("Failed login recorded: attempts={} maxAttempts={}", updated.count(), MAX_ATTEMPTS);
+        }
     }
 
     public void recordSuccess(String email) {

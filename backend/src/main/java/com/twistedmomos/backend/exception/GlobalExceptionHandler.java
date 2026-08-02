@@ -96,6 +96,13 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ErrorResponse> build(
             HttpStatus status, String message, HttpServletRequest request, List<ValidationErrorItem> validationErrors) {
+        // Every failure passes through here, so one statement covers them all. 4xx are
+        // expected outcomes rather than faults — WARN, and no stack trace. The 5xx
+        // catch-all logs its own ERROR with the exception above.
+        if (status.is4xxClientError()) {
+            log.warn("Request failed: status={} method={} path={} reason={}",
+                    status.value(), request.getMethod(), request.getRequestURI(), message);
+        }
         ErrorResponse body = new ErrorResponse(
                 Instant.now(),
                 status.value(),
