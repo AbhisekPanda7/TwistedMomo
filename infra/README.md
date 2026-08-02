@@ -92,6 +92,22 @@ systemctl status unattended-upgrades --no-pager | head -5
 
 Verify: the service reports `active (running)`.
 
+**If SSH stops answering after this step**, the upgrade restarted the SSH units and
+`ssh.socket` did not come back — an observed failure on a fresh Hostinger Ubuntu
+24.04 image, not a hypothetical. The symptom is a connection *timeout* while the
+Hostinger browser console still logs in fine. Recover from that console:
+
+```bash
+systemctl status ssh --no-pager | head -6   # "inactive (dead)" confirms it
+ss -tlnp | grep :22                          # no output confirms nothing is listening
+systemctl enable --now ssh.socket
+ss -tlnp | grep :22                          # LISTEN 0 4096 0.0.0.0:22
+```
+
+An `apt upgrade` that pulls a kernel also leaves `*** System restart required ***`.
+Reboot once SSH is confirmed working, then check it comes back on its own — that is
+the test that `enable` actually persisted.
+
 ## 3. Create the deploy user
 
 Running everything as root means any container escape or careless command is
@@ -156,6 +172,24 @@ This is the *belt*; the firewall in step 6 is the *braces*. With both in place,
 `sshd` is not merely blocked from the public interface — it is not listening on it
 at all, so even a flushed firewall leaves nothing exposed.
 
+**First, disable socket activation.** Ubuntu 24.04 ships SSH socket-activated:
+`ssh.socket` owns the listening address and spawns `ssh.service` per connection.
+While that is in effect, `ListenAddress` in `sshd_config` is **silently ignored** —
+the bind address comes from the socket unit instead. Confirm which mode is active:
+
+```bash
+ss -tlnp | grep :22
+# users:(("systemd",pid=1,...))  -> socket-activated, do the disable below
+# users:(("sshd",...))           -> classic service, skip to the ListenAddress block
+```
+
+```bash
+systemctl disable --now ssh.socket
+systemctl enable ssh.service
+```
+
+Then bind sshd to the tailnet:
+
 ```bash
 TS_IP=$(tailscale ip -4)
 printf '\n# Bind to the Tailscale interface only — never the public one.\nListenAddress %s\n' "$TS_IP" >> /etc/ssh/sshd_config
@@ -163,11 +197,15 @@ printf '\n# Bind to the Tailscale interface only — never the public one.\nList
 sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/'          /etc/ssh/sshd_config
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 
-sshd -t && systemctl restart ssh
+sshd -t && systemctl restart ssh.service
 ```
 
 `sshd -t` validates the configuration before the restart. **Do not skip it** — a
 syntax error plus a restart means sshd fails to come back and you are locked out.
+
+Keep the Hostinger browser console open while running this. It is an out-of-band
+connection to the VM that works when sshd is stopped and the firewall is closed,
+which is what makes this step recoverable rather than a one-way door.
 
 Verify it is listening on the Tailscale IP and nowhere else:
 
