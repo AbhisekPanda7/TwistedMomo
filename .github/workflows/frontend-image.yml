@@ -1,6 +1,9 @@
-# Builds the frontend image and asks Dokploy to redeploy. Mirrors
+# Builds the frontend image. Does NOT deploy — see release.yml. Mirrors
 # backend-image.yml; kept as a separate workflow so a frontend change does not
 # rebuild the API and vice versa.
+#
+# Version numbers come from this workflow's own run counter, so frontend and
+# backend versions advance independently and are not comparable to each other.
 
 name: frontend image
 
@@ -74,19 +77,21 @@ jobs:
           platforms: linux/amd64
           build-args: |
             VITE_API_BASE_URL=${{ env.API_BASE_URL }}
+          # No :latest here — that tag is what Dokploy pulls, and release.yml is
+          # the only thing allowed to move it. :sha is kept alongside the version
+          # so a build can always be traced back to its commit.
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v0.0.${{ github.run_number }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Dokploy redeploy
-        # The same compose stack serves both images, so this is the same webhook
-        # the backend workflow calls.
+      - name: Summary
         run: |
-          curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
-            || { echo "Dokploy webhook failed"; exit 1; }
+          {
+            echo "### Built \`v0.0.${{ github.run_number }}\`"
+            echo ""
+            echo "Commit \`${{ github.sha }}\` — **not deployed**."
+            echo ""
+            echo "Deploy it with the **release frontend** workflow, version \`v0.0.${{ github.run_number }}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
