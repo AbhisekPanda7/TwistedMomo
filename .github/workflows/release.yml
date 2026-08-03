@@ -102,6 +102,21 @@ jobs:
             git push origin "$TAG"
           fi
 
+      # The Dokploy panel is bound to the Tailscale interface and firewalled off
+      # the public internet, so the webhook host does not resolve from a stock
+      # runner. Joining the tailnet is what makes it reachable without exposing
+      # the panel — which holds every environment variable in plaintext.
+      #
+      # The node is ephemeral and tagged: it removes itself when the job ends,
+      # and tag:ci is scoped in the ACL to port 3000 on the prod host only —
+      # not SSH, not Grafana.
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Trigger Dokploy redeploy
         # The webhook URL is a secret: anyone holding it can trigger a deploy.
         # Dokploy pulls :latest, which now resolves to the promoted digest.
