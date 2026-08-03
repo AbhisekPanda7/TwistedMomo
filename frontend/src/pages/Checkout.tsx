@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import axios from "axios";
 import Container from "../components/ui/Container";
 import PageHero from "../components/ui/PageHero";
 import Reveal from "../components/ui/Reveal";
+import ErrorNote from "../components/ui/ErrorNote";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { placeOrder } from "../lib/orders";
+import { toApiError, type ApiError } from "../lib/apiError";
 
 const inputClass =
   "w-full rounded-xl border border-ink-600 bg-ink-900 px-4 py-3 font-sans text-sm text-paper-50 placeholder:text-paper-200/30 outline-none transition-all duration-200 focus:border-gold-400 focus:ring-4 focus:ring-gold-400/10";
@@ -25,7 +25,7 @@ export default function Checkout() {
   const [city, setCity] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const hasUnavailable = cart?.items.some((item) => !item.available) ?? false;
@@ -59,11 +59,7 @@ export default function Checkout() {
       await refresh();
       navigate(`/orders/${order.id}`, { replace: true });
     } catch (err) {
-      const message =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? (err.response.data.message as string)
-          : "Couldn't place your order. Please try again.";
-      setError(message);
+      setError(toApiError(err, "Couldn't place your order. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -99,15 +95,7 @@ export default function Checkout() {
                 </p>
               )}
 
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-lg border border-chili-500/40 bg-chili-500/10 px-4 py-3 font-sans text-sm text-chili-500"
-                >
-                  {error}
-                </motion.p>
-              )}
+              <ErrorNote error={error} />
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>

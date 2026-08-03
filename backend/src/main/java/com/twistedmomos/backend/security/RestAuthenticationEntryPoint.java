@@ -1,5 +1,6 @@
 package com.twistedmomos.backend.security;
 
+import com.twistedmomos.backend.config.CurrentTrace;
 import com.twistedmomos.backend.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;
+    private final CurrentTrace currentTrace;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
@@ -29,6 +31,7 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 HttpStatus.UNAUTHORIZED.getReasonPhrase(),
                 "Authentication is required to access this resource",
                 request.getRequestURI(),
+                currentTrace.traceId(),
                 null);
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

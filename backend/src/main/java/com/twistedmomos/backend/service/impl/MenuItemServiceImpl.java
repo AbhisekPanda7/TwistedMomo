@@ -14,7 +14,11 @@ import com.twistedmomos.backend.repository.MenuItemRepository;
 import com.twistedmomos.backend.repository.specification.MenuItemSpecifications;
 import com.twistedmomos.backend.service.FileStorageService;
 import com.twistedmomos.backend.service.MenuItemService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -74,7 +79,10 @@ public class MenuItemServiceImpl implements MenuItemService {
     @Override
     @Transactional
     public MenuItemResponse create(MenuItemRequest request) {
+        log.info("Creating menu item: slug={} categoryId={}", request.slug(), request.categoryId());
+
         if (menuItemRepository.existsBySlug(request.slug())) {
+            log.warn("Menu item create rejected — slug already exists: slug={}", request.slug());
             throw new DuplicateResourceException("A menu item with slug '" + request.slug() + "' already exists");
         }
         Category category = findCategoryOrThrow(request.categoryId());
@@ -92,17 +100,60 @@ public class MenuItemServiceImpl implements MenuItemService {
                 .displayOrder(request.displayOrder() != null ? request.displayOrder() : 0)
                 .build();
 
-        return menuItemMapper.toResponse(menuItemRepository.save(menuItem));
+        MenuItem saved = menuItemRepository.save(menuItem);
+        log.info("Menu item created: menuItemId={} slug={} categoryId={} price={} available={}",
+                saved.getId(), saved.getSlug(), category.getId(), saved.getPrice(), saved.isAvailable());
+        return menuItemMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
     public MenuItemResponse update(Long id, MenuItemRequest request) {
+        log.info("Updating menu item: menuItemId={}", id);
+
         MenuItem menuItem = findOrThrow(id);
         if (menuItemRepository.existsBySlugAndIdNot(request.slug(), id)) {
+            log.warn("Menu item update rejected — slug taken by another item: menuItemId={} slug={}",
+                    id, request.slug());
             throw new DuplicateResourceException("A menu item with slug '" + request.slug() + "' already exists");
         }
         Category category = findCategoryOrThrow(request.categoryId());
+
+        // Captured before mutation so the log names what actually changed rather than
+        // what the request happened to carry. Price changes especially are worth an
+        // audit trail — orders snapshot price at placement, so a change here is silent.
+        List<String> changed = new ArrayList<>();
+        if (!Objects.equals(menuItem.getCategory().getId(), category.getId())) {
+            changed.add("category");
+        }
+        if (!Objects.equals(menuItem.getName(), request.name())) {
+            changed.add("name");
+        }
+        if (!Objects.equals(menuItem.getSlug(), request.slug())) {
+            changed.add("slug");
+        }
+        if (!Objects.equals(menuItem.getDescription(), request.description())) {
+            changed.add("description");
+        }
+        if (menuItem.getPrice() == null || request.price() == null
+                || menuItem.getPrice().compareTo(request.price()) != 0) {
+            changed.add("price");
+        }
+        if (menuItem.isVeg() != request.veg()) {
+            changed.add("veg");
+        }
+        if (!Objects.equals(menuItem.getSpicyLevel(), request.spicyLevel())) {
+            changed.add("spicyLevel");
+        }
+        if (!Objects.equals(menuItem.getTag(), parseTag(request.tag()))) {
+            changed.add("tag");
+        }
+        if (request.available() != null && menuItem.isAvailable() != request.available()) {
+            changed.add("available");
+        }
+        if (request.displayOrder() != null && !Objects.equals(menuItem.getDisplayOrder(), request.displayOrder())) {
+            changed.add("displayOrder");
+        }
 
         menuItem.setCategory(category);
         menuItem.setName(request.name());
@@ -119,44 +170,76 @@ public class MenuItemServiceImpl implements MenuItemService {
             menuItem.setDisplayOrder(request.displayOrder());
         }
 
-        return menuItemMapper.toResponse(menuItemRepository.save(menuItem));
+        MenuItem saved = menuItemRepository.save(menuItem);
+        log.info("Menu item updated: menuItemId={} fieldsChanged={}", id, changed);
+        return menuItemMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        menuItemRepository.delete(findOrThrow(id));
+        log.info("Deleting menu item: menuItemId={}", id);
+        MenuItem menuItem = findOrThrow(id);
+        menuItemRepository.delete(menuItem);
+        // Placed orders keep their snapshotted name and price; OrderItem.menuItemId
+        // simply becomes null. Deleting never rewrites order history.
+        log.info("Menu item deleted: menuItemId={} slug={}", id, menuItem.getSlug());
     }
 
     @Override
     @Transactional
     public MenuItemResponse setAvailability(Long id, boolean available) {
         MenuItem menuItem = findOrThrow(id);
+        boolean previous = menuItem.isAvailable();
         menuItem.setAvailable(available);
-        return menuItemMapper.toResponse(menuItemRepository.save(menuItem));
+        MenuItem saved = menuItemRepository.save(menuItem);
+        log.info("Menu item availability changed: menuItemId={} from={} to={}", id, previous, available);
+        return menuItemMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
     public MenuItemResponse uploadImage(Long id, MultipartFile file) {
+        log.info("Uploading menu item image: menuItemId={} sizeBytes={} contentType={}",
+                id, file.getSize(), file.getContentType());
+
         MenuItem menuItem = findOrThrow(id);
+        // store() validates type and size, and throws InvalidFileException on rejection.
         String imageUrl = fileStorageService.store(file, "menu");
         menuItem.setImageUrl(imageUrl);
-        return menuItemMapper.toResponse(menuItemRepository.save(menuItem));
+        MenuItem saved = menuItemRepository.save(menuItem);
+        log.info("Menu item image uploaded: menuItemId={}", id);
+        return menuItemMapper.toResponse(saved);
     }
 
     private MenuItem findOrThrow(Long id) {
         return menuItemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Menu item " + id + " not found"));
+                .orElseThrow(() -> {
+                    log.warn("Menu item not found: menuItemId={}", id);
+                    return new ResourceNotFoundException("Menu item " + id + " not found");
+                });
     }
 
     private Category findCategoryOrThrow(Long categoryId) {
         return categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category " + categoryId + " not found"));
+                .orElseThrow(() -> {
+                    log.warn("Category not found for menu item: categoryId={}", categoryId);
+                    return new ResourceNotFoundException("Category " + categoryId + " not found");
+                });
     }
 
     private MenuItemTag parseTag(String tag) {
-        return tag == null ? null : MenuItemTag.valueOf(tag);
+        if (tag == null) {
+            return null;
+        }
+        try {
+            return MenuItemTag.valueOf(tag);
+        } catch (IllegalArgumentException ex) {
+            // Reaches the catch-all handler as a 500 rather than a 400 — logged here
+            // because the generic response tells the client nothing about the cause.
+            log.warn("Unknown menu item tag requested: tag={}", tag);
+            throw ex;
+        }
     }
 
     private Pageable withDefaultSort(Pageable pageable) {

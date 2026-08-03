@@ -5,6 +5,7 @@ import com.twistedmomos.backend.dto.request.UpdateCartItemRequest;
 import com.twistedmomos.backend.dto.response.CartResponse;
 import com.twistedmomos.backend.security.CustomUserDetails;
 import com.twistedmomos.backend.service.CartService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Every endpoint here operates on the authenticated caller's own cart — there is no cart-by-id lookup. */
+@Tag(name = "Cart", description = "The signed-in user's cart")
 @RestController
 @RequestMapping("/api/v1/cart")
 @RequiredArgsConstructor

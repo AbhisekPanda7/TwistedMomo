@@ -6,6 +6,7 @@ import com.twistedmomos.backend.dto.response.OrderSummaryResponse;
 import com.twistedmomos.backend.dto.response.PageResponse;
 import com.twistedmomos.backend.security.CustomUserDetails;
 import com.twistedmomos.backend.service.OrderService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Every endpoint here operates on the authenticated caller's own orders — there is no order-by-id lookup across users. */
+@Tag(name = "Orders", description = "Placing and viewing the signed-in user's orders")
 @RestController
 @RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor

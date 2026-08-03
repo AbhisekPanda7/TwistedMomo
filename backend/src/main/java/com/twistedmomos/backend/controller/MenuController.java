@@ -3,6 +3,7 @@ package com.twistedmomos.backend.controller;
 import com.twistedmomos.backend.dto.response.MenuItemResponse;
 import com.twistedmomos.backend.dto.response.PageResponse;
 import com.twistedmomos.backend.service.MenuItemService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Menu", description = "Public menu item browsing and filtering")
 @RestController
 @RequestMapping("/api/v1/menu")
 @RequiredArgsConstructor

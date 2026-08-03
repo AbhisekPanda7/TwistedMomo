@@ -8,9 +8,13 @@ import com.twistedmomos.backend.security.JwtService;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+// Token values are never logged — a refresh token is a bearer credential, so a log
+// line containing one is as good as the credential itself.
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService {
@@ -28,7 +32,9 @@ public class RefreshTokenService {
                 .revoked(false)
                 .createdAt(Instant.now())
                 .build();
-        return refreshTokenRepository.save(refreshToken);
+        RefreshToken saved = refreshTokenRepository.save(refreshToken);
+        log.info("Refresh token issued: userId={} expiresAt={}", user.getId(), saved.getExpiresAt());
+        return saved;
     }
 
     /**
@@ -41,29 +47,38 @@ public class RefreshTokenService {
     @Transactional
     public RefreshToken rotate(String tokenValue) {
         RefreshToken token = refreshTokenRepository.findByToken(tokenValue)
-                .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token not recognized"));
+                .orElseThrow(() -> {
+                    log.warn("Refresh rejected — token not recognized");
+                    return new InvalidRefreshTokenException("Refresh token not recognized");
+                });
+
+        Long userId = token.getUser().getId();
 
         if (token.isRevoked()) {
             // Must commit independently of this method's own transaction — see
             // RefreshTokenSecurityActions' javadoc for why.
-            securityActions.revokeAllActiveForUser(token.getUser().getId());
+            log.warn("Refresh token reuse detected — revoking all sessions: userId={}", userId);
+            securityActions.revokeAllActiveForUser(userId);
             throw new InvalidRefreshTokenException("Refresh token has been revoked");
         }
         if (token.getExpiresAt().isBefore(Instant.now())) {
+            log.warn("Refresh rejected — token expired: userId={} expiredAt={}", userId, token.getExpiresAt());
             throw new InvalidRefreshTokenException("Refresh token has expired");
         }
 
         token.setRevoked(true);
         refreshTokenRepository.save(token);
+        log.info("Refresh token rotated: userId={}", userId);
         return create(token.getUser());
     }
 
     @Transactional
     public void revoke(String tokenValue) {
         refreshTokenRepository.findByToken(tokenValue)
-                .ifPresent(token -> {
+                .ifPresentOrElse(token -> {
                     token.setRevoked(true);
                     refreshTokenRepository.save(token);
-                });
+                    log.info("Refresh token revoked: userId={}", token.getUser().getId());
+                }, () -> log.warn("Revoke request for an unrecognized refresh token"));
     }
 }

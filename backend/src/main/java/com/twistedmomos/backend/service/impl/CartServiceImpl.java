@@ -19,9 +19,11 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -44,10 +46,17 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartResponse addItem(Long userId, AddCartItemRequest request) {
+        log.info("Adding cart item: userId={} menuItemId={} quantity={}",
+                userId, request.menuItemId(), request.quantity());
+
         Cart cart = getOrCreateCart(userId);
         MenuItem menuItem = menuItemRepository.findById(request.menuItemId())
-                .orElseThrow(() -> new ResourceNotFoundException("Menu item " + request.menuItemId() + " not found"));
+                .orElseThrow(() -> {
+                    log.warn("Cart add rejected — menu item not found: menuItemId={}", request.menuItemId());
+                    return new ResourceNotFoundException("Menu item " + request.menuItemId() + " not found");
+                });
         if (!menuItem.isAvailable()) {
+            log.warn("Cart add rejected — item unavailable: menuItemId={}", menuItem.getId());
             throw new ItemUnavailableException(menuItem.getName() + " is currently unavailable");
         }
 
@@ -57,8 +66,19 @@ public class CartServiceImpl implements CartService {
                     cart.getItems().add(created);
                     return created;
                 });
-        item.setQuantity(Math.min(item.getQuantity() + request.quantity(), MAX_QUANTITY_PER_ITEM));
+
+        int requested = item.getQuantity() + request.quantity();
+        int applied = Math.min(requested, MAX_QUANTITY_PER_ITEM);
+        if (applied < requested) {
+            // The clamp is silent to the caller — the response just shows the capped
+            // quantity — so this is the only trace of why they did not get what they asked for.
+            log.warn("Cart quantity capped: cartId={} menuItemId={} requested={} applied={}",
+                    cart.getId(), menuItem.getId(), requested, applied);
+        }
+        item.setQuantity(applied);
         cartItemRepository.save(item);
+        log.info("Cart item added: cartId={} menuItemId={} quantity={}",
+                cart.getId(), menuItem.getId(), applied);
 
         return toResponse(reload(userId));
     }
@@ -66,11 +86,22 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartResponse updateItem(Long userId, Long cartItemId, UpdateCartItemRequest request) {
+        log.info("Updating cart item: userId={} cartItemId={} quantity={}",
+                userId, cartItemId, request.quantity());
+
         Cart cart = getOrCreateCart(userId);
         CartItem item = cartItemRepository.findByIdAndCartId(cartItemId, cart.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cart item " + cartItemId + " not found"));
+                .orElseThrow(() -> {
+                    // Scoped by cart id, so a miss also covers someone else's cart item.
+                    log.warn("Cart update rejected — item not in this cart: cartItemId={} cartId={}",
+                            cartItemId, cart.getId());
+                    return new ResourceNotFoundException("Cart item " + cartItemId + " not found");
+                });
+        int previous = item.getQuantity();
         item.setQuantity(request.quantity());
         cartItemRepository.save(item);
+        log.info("Cart item updated: cartId={} cartItemId={} from={} to={}",
+                cart.getId(), cartItemId, previous, request.quantity());
 
         return toResponse(reload(userId));
     }
@@ -78,14 +109,20 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartResponse removeItem(Long userId, Long cartItemId) {
+        log.info("Removing cart item: userId={} cartItemId={}", userId, cartItemId);
+
         Cart cart = getOrCreateCart(userId);
         // Removing via the repository directly conflicts with Cart.items' cascade=ALL: Hibernate
         // reconciles the still-attached collection at flush time and the row survives. Removing
         // from the collection itself is what orphanRemoval is for — that's what actually deletes it.
         boolean removed = cart.getItems().removeIf(i -> i.getId().equals(cartItemId));
         if (!removed) {
+            log.warn("Cart remove rejected — item not in this cart: cartItemId={} cartId={}",
+                    cartItemId, cart.getId());
             throw new ResourceNotFoundException("Cart item " + cartItemId + " not found");
         }
+        log.info("Cart item removed: cartId={} cartItemId={} remaining={}",
+                cart.getId(), cartItemId, cart.getItems().size());
         return toResponse(cart);
     }
 
@@ -93,8 +130,10 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public CartResponse clearCart(Long userId) {
         Cart cart = getOrCreateCart(userId);
+        int removed = cart.getItems().size();
         // orphanRemoval on Cart.items deletes the rows on flush — no explicit repository call needed.
         cart.getItems().clear();
+        log.info("Cart cleared: cartId={} itemsRemoved={}", cart.getId(), removed);
         return toResponse(cart);
     }
 
@@ -102,13 +141,18 @@ public class CartServiceImpl implements CartService {
         return cartRepository.findByUserIdWithItems(userId)
                 .orElseGet(() -> {
                     User userRef = userRepository.getReferenceById(userId);
-                    return cartRepository.save(Cart.builder().user(userRef).build());
+                    Cart created = cartRepository.save(Cart.builder().user(userRef).build());
+                    log.info("Cart created: cartId={} userId={}", created.getId(), userId);
+                    return created;
                 });
     }
 
     private Cart reload(Long userId) {
         return cartRepository.findByUserIdWithItems(userId)
-                .orElseThrow(() -> new IllegalStateException("Cart for user " + userId + " disappeared mid-request"));
+                .orElseThrow(() -> {
+                    log.error("Cart disappeared mid-request: userId={}", userId);
+                    return new IllegalStateException("Cart for user " + userId + " disappeared mid-request");
+                });
     }
 
     private CartResponse toResponse(Cart cart) {

@@ -1,0 +1,13 @@
+target
+uploads
+.env
+*.log
+.git
+.idea
+.settings
+.factorypath
+.classpath
+.project
+.DS_Store
+Dockerfile
+.dockerignore

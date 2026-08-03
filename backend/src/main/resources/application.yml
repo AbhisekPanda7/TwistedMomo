@@ -32,6 +32,22 @@ management:
   endpoint:
     health:
       show-details: never
+  tracing:
+    sampling:
+      # Boot's default is 0.1. Sampling gates whether a span is *recorded and
+      # exported*, and there is no exporter here yet — so 0.1 would buy nothing
+      # while risking log lines with no traceId. Every request is traced so that
+      # every log line is queryable. Revisit when spans actually ship somewhere
+      # (X-Ray/OTLP), where volume and per-trace cost start to matter.
+      probability: 1.0
+  otlp:
+    metrics:
+      export:
+        # The OpenTelemetry starter is here for trace/span IDs in logs, but it
+        # also switches on an OTLP *metrics* registry that pushes to
+        # localhost:4318 every minute. Nothing listens there, so it would retry
+        # and fail forever. Turn it on deliberately alongside a collector.
+        enabled: false
 
 # Comma-separated list of origins allowed to call this API (no trailing slashes).
 # dev  -> local Vite dev server(s)

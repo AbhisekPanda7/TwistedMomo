@@ -1,5 +1,6 @@
 package com.twistedmomos.backend.security;
 
+import com.twistedmomos.backend.config.CurrentTrace;
 import com.twistedmomos.backend.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 public class RestAccessDeniedHandler implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
+    private final CurrentTrace currentTrace;
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException)
@@ -29,6 +31,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
                 HttpStatus.FORBIDDEN.getReasonPhrase(),
                 "You do not have permission to perform this action",
                 request.getRequestURI(),
+                currentTrace.traceId(),
                 null);
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

@@ -18,6 +18,7 @@ import com.twistedmomos.backend.security.LoginRateLimiter;
 import com.twistedmomos.backend.service.AuthService;
 import com.twistedmomos.backend.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -26,6 +27,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+// Log lines here deliberately carry no email address, only ids assigned after the
+// fact — see the no-PII rule. That means failed logins cannot be grouped by target
+// from logs alone; LoginRateLimiter holds that state instead.
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -42,12 +47,18 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        log.info("Registering user");
+
         if (userRepository.existsByEmail(request.email())) {
+            log.warn("Registration rejected — email already registered");
             throw new DuplicateResourceException("An account with this email already exists");
         }
 
         Role customerRole = roleRepository.findByName(RoleName.CUSTOMER)
-                .orElseThrow(() -> new IllegalStateException("CUSTOMER role is not seeded — check V2 migration"));
+                .orElseThrow(() -> {
+                    log.error("CUSTOMER role missing — V2 migration has not been applied");
+                    return new IllegalStateException("CUSTOMER role is not seeded — check V2 migration");
+                });
 
         User user = User.builder()
                 .name(request.name())
@@ -58,20 +69,28 @@ public class AuthServiceImpl implements AuthService {
                 .enabled(true)
                 .build();
         user = userRepository.save(user);
+        log.info("User registered: userId={} role={}", user.getId(), customerRole.getName());
 
         return buildAuthResponse(user);
     }
 
     @Override
     public AuthResponse login(LoginRequest request) {
+        log.info("Login attempt");
+
+        // Throws TooManyAttemptsException when the account is locked out; that path is
+        // logged by LoginRateLimiter, which owns the attempt counters.
         loginRateLimiter.checkAllowed(request.email());
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password()));
             loginRateLimiter.recordSuccess(request.email());
             User user = ((CustomUserDetails) authentication.getPrincipal()).getUser();
+            log.info("Login succeeded: userId={} role={}", user.getId(), user.getRole().getName());
             return buildAuthResponse(user);
         } catch (AuthenticationException ex) {
+            // recordFailure logs the attempt count and any resulting lockout — it owns
+            // the counters, so it is the only place that knows them.
             loginRateLimiter.recordFailure(request.email());
             throw ex;
         }
@@ -80,8 +99,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse refresh(RefreshRequest request) {
+        // rotate() logs rejection and reuse-detection; both are its own decisions.
         RefreshToken newRefreshToken = refreshTokenService.rotate(request.refreshToken());
         User user = newRefreshToken.getUser();
+        log.info("Access token refreshed: userId={}", user.getId());
         String accessToken = jwtService.generateAccessToken(user);
         return new AuthResponse(
                 accessToken,
@@ -95,6 +116,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void logout(RefreshRequest request) {
         refreshTokenService.revoke(request.refreshToken());
+        log.info("Logged out");
     }
 
     private AuthResponse buildAuthResponse(User user) {

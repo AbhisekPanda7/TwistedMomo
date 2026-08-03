@@ -23,8 +23,22 @@ app:
 logging:
   level:
     com.twistedmomos.backend: DEBUG
+  # Fills the %correlationId slot already present in Boot's default console
+  # pattern, so no custom pattern or logback XML is needed. Prod overrides this
+  # with structured ECS JSON instead — see application-prod.yml.
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+  include-application-name: false
 
 management:
   endpoint:
     health:
       show-details: always
+
+# Paths are springdoc's defaults, set explicitly so they are greppable and so
+# SecurityConfig.SWAGGER_ENDPOINTS can be matched against something concrete.
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

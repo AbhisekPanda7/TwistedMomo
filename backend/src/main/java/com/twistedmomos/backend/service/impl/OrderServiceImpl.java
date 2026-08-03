@@ -25,10 +25,12 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -51,14 +53,20 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse placeOrder(Long userId, PlaceOrderRequest request) {
+        log.info("Placing order: userId={}", userId);
+
         Cart cart = cartRepository.findByUserIdWithItems(userId).orElse(null);
         if (cart == null || cart.getItems().isEmpty()) {
+            log.warn("Order rejected — empty cart: userId={}", userId);
             throw new EmptyCartException("Your cart is empty");
         }
+        log.info("Cart loaded: cartId={} distinctItems={}", cart.getId(), cart.getItems().size());
 
         // Availability can have changed since items were added to the cart — re-check at order time.
         for (CartItem cartItem : cart.getItems()) {
             if (!cartItem.getMenuItem().isAvailable()) {
+                log.warn("Order rejected — item unavailable: userId={} menuItemId={}",
+                        userId, cartItem.getMenuItem().getId());
                 throw new ItemUnavailableException(
                         cartItem.getMenuItem().getName() + " is no longer available — please remove it from your cart");
             }
@@ -98,11 +106,15 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setTotalItems(totalItems);
         order.setSubtotal(subtotal);
+        log.info("Order totals computed: units={} subtotal={}", totalItems, subtotal);
 
         Order saved = orderRepository.save(order);
+        log.info("Order placed: orderId={} userId={} status={} units={} subtotal={}",
+                saved.getId(), userId, saved.getStatus(), totalItems, subtotal);
 
         // orphanRemoval on Cart.items deletes the cart_items rows on flush — the cart is now empty.
         cart.getItems().clear();
+        log.info("Cart cleared after order: cartId={} orderId={}", cart.getId(), saved.getId());
 
         return toResponse(reloadWithDetails(saved.getId()));
     }
@@ -117,20 +129,36 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponse getMyOrder(Long userId, Long orderId) {
         Order order = orderRepository.findByIdAndUserIdWithDetails(orderId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order " + orderId + " not found"));
+                .orElseThrow(() -> {
+                    // The query is scoped by userId, so a miss is either a genuinely absent
+                    // order or someone else's. Both answer 404 deliberately (see CLAUDE.md);
+                    // only this log distinguishes them for an operator.
+                    log.warn("Order not found or not owned: orderId={} userId={}", orderId, userId);
+                    return new ResourceNotFoundException("Order " + orderId + " not found");
+                });
         return toResponse(order);
     }
 
     @Override
     @Transactional
     public OrderResponse cancelMyOrder(Long userId, Long orderId) {
+        log.info("Cancelling order: orderId={} userId={}", orderId, userId);
+
         Order order = orderRepository.findByIdAndUserIdWithDetails(orderId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order " + orderId + " not found"));
+                .orElseThrow(() -> {
+                    log.warn("Cancellation rejected — order not found or not owned: orderId={} userId={}",
+                            orderId, userId);
+                    return new ResourceNotFoundException("Order " + orderId + " not found");
+                });
         if (order.getStatus() != OrderStatus.PENDING) {
+            log.warn("Cancellation rejected — status not cancellable: orderId={} status={}",
+                    orderId, order.getStatus());
             throw new InvalidOrderStatusTransitionException(
                     "This order can no longer be cancelled (current status: " + order.getStatus() + ")");
         }
         order.setStatus(OrderStatus.CANCELLED);
+        log.info("Order cancelled: orderId={} userId={} from={} to={}",
+                orderId, userId, OrderStatus.PENDING, OrderStatus.CANCELLED);
         return toResponse(order);
     }
 
@@ -155,24 +183,34 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updateStatus(Long orderId, String status) {
         OrderStatus newStatus = parseStatus(status);
         Order order = reloadWithDetails(orderId);
-        Set<OrderStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(order.getStatus(), Set.of());
+        OrderStatus current = order.getStatus();
+        log.info("Updating order status: orderId={} from={} to={}", orderId, current, newStatus);
+
+        Set<OrderStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(current, Set.of());
         if (!allowed.contains(newStatus)) {
+            log.warn("Status transition rejected: orderId={} from={} to={} allowed={}",
+                    orderId, current, newStatus, allowed);
             throw new InvalidOrderStatusTransitionException(
-                    "Cannot move order from " + order.getStatus() + " to " + newStatus);
+                    "Cannot move order from " + current + " to " + newStatus);
         }
         order.setStatus(newStatus);
+        log.info("Order status changed: orderId={} from={} to={}", orderId, current, newStatus);
         return toResponse(order);
     }
 
     private Order reloadWithDetails(Long orderId) {
         return orderRepository.findByIdWithDetails(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order " + orderId + " not found"));
+                .orElseThrow(() -> {
+                    log.warn("Order not found: orderId={}", orderId);
+                    return new ResourceNotFoundException("Order " + orderId + " not found");
+                });
     }
 
     private OrderStatus parseStatus(String value) {
         try {
             return OrderStatus.valueOf(value);
         } catch (IllegalArgumentException e) {
+            log.warn("Unknown order status requested: value={}", value);
             throw new InvalidOrderStatusTransitionException("Unknown order status: " + value);
         }
     }

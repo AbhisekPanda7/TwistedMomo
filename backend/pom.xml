@@ -23,6 +23,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <jjwt.version>0.13.0</jjwt.version>
+        <springdoc.version>3.0.3</springdoc.version>
     </properties>
 
     <dependencies>
@@ -99,6 +100,24 @@
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- API docs. springdoc 3.x is the Spring Boot 4 line — 2.x does not
+             support Boot 4 and fails at context startup. Not in the Boot BOM,
+             so the version is explicit. Disabled entirely in prod. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- Tracing. This starter — not the bare micrometer-tracing-bridge-otel —
+             is what pulls spring-boot-micrometer-tracing-opentelemetry, the module
+             that actually auto-configures the Tracer and populates traceId/spanId
+             into the logging MDC. The bridge on its own registers nothing. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
         </dependency>
 
         <!-- Dev convenience -->

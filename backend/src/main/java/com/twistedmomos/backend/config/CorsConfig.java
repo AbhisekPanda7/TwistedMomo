@@ -21,6 +21,10 @@ public class CorsConfig {
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        // Browsers hide every non-simple response header from JS unless it is
+        // named here — without this the frontend cannot read the trace ID off a
+        // successful response, only off an error body.
+        configuration.setExposedHeaders(List.of(TraceResponseFilter.TRACE_ID_HEADER));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

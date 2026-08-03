@@ -1,0 +1,92 @@
+# Local development stack. The two packages stay self-contained — this file is
+# the only thing that knows about both, and it references them by build context
+# alone. Neither Dockerfile reaches into the other package.
+#
+#   docker compose up --build     start everything
+#   docker compose down           stop (data survives)
+#   docker compose down -v        stop and wipe the database
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: twistedmomos-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      # Flyway owns the schema, but the database itself must exist before Boot
+      # connects — the dev JDBC URL's createDatabaseIfNotExist only fires on a
+      # host install, not against a fresh container with no schema at all.
+      MYSQL_DATABASE: twisted_momos_dev
+    ports:
+      # Published so you can attach a GUI client or run the backend on the host
+      # against this container instead of the one below.
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # The backend fails fast on an unreachable datasource, so it must not
+      # start until MySQL is actually accepting connections — a running
+      # container is not the same as a ready server.
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+    container_name: twistedmomos-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      # Overrides application-dev.yml's localhost URL: inside the network the
+      # host is the service name, not localhost.
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/twisted_momos_dev?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      # Dev-only throwaway, same as the application-dev.yml fallback.
+      JWT_SECRET: dev-only-insecure-secret-change-me-this-needs-to-be-at-least-32-bytes-long-for-hs256
+      # The browser calls the API from the host, so the allowed origin is the
+      # host-side URL of the frontend, not the container name.
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "8081:8080"
+    volumes:
+      - backend-uploads:/app/uploads
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "curl -fsS http://localhost:8080/actuator/health || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: twistedmomos-frontend
+    depends_on:
+      - backend
+    environment:
+      # Resolved by your browser, not by this container — so it is the host's
+      VITE_API_BASE_URL: http://localhost:8081/api/v1
+    ports:
+      - "5173:5173"
+    volumes:
+      # Bind-mount the source for HMR, with an anonymous volume masking
+      # node_modules so the image's Linux-built dependencies are not shadowed
+      # by a host node_modules built for a different platform.
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mysql-data:
+  backend-uploads:

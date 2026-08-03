@@ -5,6 +5,7 @@ import com.twistedmomos.backend.dto.request.RefreshRequest;
 import com.twistedmomos.backend.dto.request.RegisterRequest;
 import com.twistedmomos.backend.dto.response.AuthResponse;
 import com.twistedmomos.backend.service.AuthService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Auth", description = "Registration, login, token refresh and logout")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
