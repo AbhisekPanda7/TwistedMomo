@@ -58,7 +58,10 @@ services:
     labels:
       logging: "promtail"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      # 127.0.0.1, not localhost: localhost resolves to ::1 first and the nginx
+      # config listens on IPv4 only, so wget gets connection refused and the
+      # container reports unhealthy while serving traffic perfectly.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 5

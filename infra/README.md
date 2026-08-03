@@ -480,8 +480,12 @@ image* → **Run workflow**, and the same for *frontend image*.
 
 1. Dokploy → Create Project → `twistedmomos`.
 2. Inside it → Create Service → **Compose**.
-3. Provider GitHub, repo `AbhisekPanda7/TwistedMomo`, branch `main`, compose path
-   `infra/app/compose.yml`.
+3. Source. Provider **Git** with URL
+   `https://github.com/AbhisekPanda7/TwistedMomo.git`, branch `main`, compose path
+   `infra/app/compose.yml`. The repository is public, so no credentials are
+   needed — and unlike the GitHub App provider, this needs no approval from the
+   repository owner, which matters when you are a collaborator rather than the
+   owner.
 4. Environment tab → paste `infra/app/.env.example` and replace every `change-me`.
    Generate secrets with:
    ```bash
@@ -493,6 +497,22 @@ image* → **Run workflow**, and the same for *frontend image*.
 5. Set `CLOUDFLARE_TUNNEL_TOKEN` to the token from step 9.
 6. Deploy. Watch the logs until Flyway reports the migrations applied and Boot
    logs `Started BackendApplication`.
+
+**If a deploy fails and you then change anything about a network in this file,
+tear the stack down before redeploying.** Docker does not recreate an existing
+network when its definition changes, so the old one silently survives and the
+next deploy is applied against it. The symptom is not a network error — it is
+`java.net.UnknownHostException: mysql` buried at the bottom of a Spring bean
+failure, because the backend never joined the network MySQL is on:
+
+```bash
+docker rm -f $(docker ps -aq --filter name=twistedmomos-app)
+docker network rm $(docker network ls -q --filter name=twistedmomos-app)
+docker network ls | grep twistedmomos    # must print nothing
+```
+
+Named volumes (`mysql-data`, `backend-uploads`) are untouched by this, so no data
+is lost.
 
 Verify the tunnel connected:
 
@@ -522,18 +542,41 @@ to the wrong host in the network tab rather than as a build failure.
 
 ## 11. Deploy the observability stack
 
+A separate Dokploy service from the application, so logging can be restarted
+without touching the API.
+
 1. Dokploy → same project → Create Service → **Compose**.
-2. Compose path `infra/observability/compose.yml`.
+2. Source: provider **Git**, URL
+   `https://github.com/AbhisekPanda7/TwistedMomo.git`, branch `main`, compose path
+   `infra/observability/compose.yml`.
 3. Environment tab → paste `infra/observability/.env.example`, replacing
-   `change-me-long-random` with `openssl rand -base64 24`.
+   `change-me-long-random` with `openssl rand -base64 24`, and setting
+   `GRAFANA_BIND_IP` to this host's Tailscale address (`tailscale ip -4`).
 4. Deploy.
 
-**Reaching Grafana.** It binds to loopback, so it is reached through an SSH tunnel
-over Tailscale:
+**Reaching Grafana.** It binds to the Tailscale interface, so any device on the
+tailnet reaches it by MagicDNS name — no tunnel, no port forward:
+
+```
+http://twistedmomos-prod:3001
+```
+
+Confirm it is bound to that interface and not to `0.0.0.0`:
 
 ```bash
-ssh -L 3001:127.0.0.1:3001 admin-deploy@twistedmomos-prod
-# then open http://localhost:3001
+ss -tlnp | grep 3001
+# LISTEN 0 4096 100.x.y.z:3001
+```
+
+`0.0.0.0:3001` there means `GRAFANA_BIND_IP` was unset and the panel is exposed to
+the internet — Docker publishes ports through its own iptables chain, ahead of
+ufw, so the firewall will not save you. Fix the variable and redeploy rather than
+adding a DROP rule on top.
+
+Verify from off-network that it is not reachable publicly:
+
+```bash
+nc -vz -w 5 <vps-public-ip> 3001    # must time out
 ```
 
 Add the data source: Connections → Add data source → **Loki** → URL

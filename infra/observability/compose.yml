@@ -44,10 +44,18 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     ports:
-      # Loopback only, reached through an SSH tunnel over Tailscale. Never bound
-      # to 0.0.0.0 — Grafana can read every log line the application emits,
-      # including request paths and stack traces.
-      - "127.0.0.1:3001:3000"
+      # Bound to the Tailscale interface, never 0.0.0.0 — Grafana can read every
+      # log line the application emits, including request paths and stack traces.
+      # Binding the interface rather than filtering the port is the same choice
+      # made for sshd: Docker writes its own iptables rules ahead of ufw, so a
+      # port published on 0.0.0.0 is reachable from the internet no matter what
+      # the firewall says. What is not listening cannot be exposed by a rule
+      # someone flushes later.
+      #
+      # GRAFANA_BIND_IP is the host's Tailscale IP (tailscale ip -4); set it in
+      # the Dokploy environment. Use 127.0.0.1 to fall back to loopback-only and
+      # reach Grafana over an SSH tunnel instead.
+      - "${GRAFANA_BIND_IP}:3001:3000"
     networks:
       - observability
 

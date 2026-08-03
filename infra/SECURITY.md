@@ -22,7 +22,7 @@ close.
 | Origin identity | Origin is never contacted directly | Cloudflare proxy hides the IP | IP leaks via DNS history or certificate logs |
 | Database | No `ports:` mapping at all | Isolated overlay network | Reaching MySQL from the host or another stack |
 | Dokploy panel | Bound to the Tailscale interface | `ufw deny 3000` | Exposure of every environment variable in plaintext |
-| Grafana | Bound to `127.0.0.1` | Reached only through an SSH tunnel | Anonymous log access |
+| Grafana | Bound to the Tailscale interface | Admin password, no anonymous access, no sign-up | Anonymous log access; a port scan finding the panel at all |
 | Patching | `unattended-upgrades` (security only) | Lynis audit, recorded | Known-CVE drift |
 
 ## Why not IP whitelisting for SSH
