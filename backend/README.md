@@ -185,7 +185,7 @@ Unit tests only (Mockito-mocked repositories, no database required) — fast and
 - **Login rate limiting is per-instance, in-memory** (`LoginRateLimiter`) — correct for the current single-instance deployment, but wouldn't share state across multiple instances if this ever scales horizontally. Swap the backing map for Redis (or similar) at that point.
 - **Dokploy stores environment variables in plaintext** in its internal Postgres, so panel access is equivalent to holding every secret. Mitigated by keeping the panel off the public internet; see `infra/SECURITY.md`.
 - **One production host, no replication** — recovery is restore-from-backup (`infra/bootstrap/backup.sh`).
-- **CI covers the backend only** — `.github/workflows/backend-image.yml` runs the tests, builds the image, and triggers a redeploy. The frontend's `npm run build`/`tsc` is still run by hand.
+- **Building is not deploying** — `.github/workflows/backend-image.yml` runs the tests and pushes `:v0.0.N` and `:<sha>`, but never `:latest`. Dokploy pulls `:latest`, so a merge to `main` puts a candidate in the registry and stops there. Shipping it is a separate `release` run behind an approval gate. Rolling back moves `:latest` to an earlier version — it does not revert `main`, so the next release can ship over a rollback.
 
 ## Roadmap
 
