@@ -102,7 +102,11 @@ volumes:
 networks:
   internal:
     driver: overlay
-    # MySQL and the backend only. Not attachable, so another stack cannot join it.
-    attachable: false
+    # MySQL and the backend only. Must be attachable: Dokploy deploys compose
+    # stacks as standalone containers rather than swarm services, and an overlay
+    # network with attachable:false rejects those outright —
+    # "not manually attachable". Isolation here comes from the network being
+    # scoped to this stack and MySQL publishing no port, not from this flag.
+    attachable: true
   dokploy-network:
     external: true

@@ -59,4 +59,7 @@ volumes:
 networks:
   observability:
     driver: overlay
-    attachable: false
+    # Attachable for the same reason as infra/app/compose.yml: Dokploy runs
+    # compose stacks as standalone containers, which an overlay network with
+    # attachable:false refuses to accept.
+    attachable: true
