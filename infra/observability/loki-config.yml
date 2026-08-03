@@ -1,0 +1,49 @@
+# Single-binary Loki with filesystem storage — adequate for one box. Swap
+# storage_config for S3-compatible object storage if this outgrows the disk.
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Containers restart and clocks drift; without this, logs from a just-restarted
+  # container can be silently rejected as too old.
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  # The ECS JSON lines ingested here carry traceId, spanId and a full stack trace
+  # on error, so the default 256 kB line cap is raised.
+  max_line_size: 512kb
+
+# Logs are for debugging recent incidents, not archival. 30 days keeps the disk
+# bounded on a single box.
+compactor:
+  working_directory: /loki/compactor
+  delete_request_store: filesystem
+  retention_enabled: true
+
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 720h

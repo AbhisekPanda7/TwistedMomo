@@ -1,0 +1,92 @@
+# Builds the frontend image and asks Dokploy to redeploy. Mirrors
+# backend-image.yml; kept as a separate workflow so a frontend change does not
+# rebuild the API and vice versa.
+
+name: frontend image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-image.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # GHCR requires a lowercase path; the repository name is mixed case.
+  IMAGE_NAME: abhisekpanda7/twistedmomo-frontend
+  # Compiled into the bundle at build time — Vite does not read this at runtime,
+  # so it lives here rather than in the Dokploy environment.
+  API_BASE_URL: https://api.twistedmomos.tech/api/v1
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      # `npm run build` runs `tsc -b` first, so this is the type check as well.
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  build-and-push:
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            VITE_API_BASE_URL=${{ env.API_BASE_URL }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dokploy redeploy
+        # The same compose stack serves both images, so this is the same webhook
+        # the backend workflow calls.
+        run: |
+          curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
+            || { echo "Dokploy webhook failed"; exit 1; }

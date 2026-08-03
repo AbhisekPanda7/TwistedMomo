@@ -1,0 +1,70 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+
+    relabel_configs:
+      # Only containers that opt in with `logging: "promtail"` are scraped, which
+      # keeps Dokploy's own noisy internals out of the index.
+      - source_labels: ['__meta_docker_container_label_logging']
+        regex: 'promtail'
+        action: keep
+
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+
+      - source_labels: ['__meta_docker_container_label_com_docker_stack_namespace']
+        target_label: 'stack'
+
+    pipeline_stages:
+      # Docker wraps each line as {"log":"...","stream":"stdout","time":"..."}.
+      # Unwrap that first; the application's own JSON is inside `log`.
+      - docker: {}
+
+      # The application's ECS JSON. traceId and spanId are flat top-level fields,
+      # not nested under trace.id — verified against a running container.
+      - json:
+          expressions:
+            level: 'log.level'
+            logger: 'log.logger'
+            msg: message
+            traceId: traceId
+            spanId: spanId
+            timestamp: '"@timestamp"'
+
+      # Only low-cardinality values become labels. traceId is unique per request,
+      # so as a label it would create one Loki stream per request and cripple the
+      # index.
+      - labels:
+          level:
+
+      # High-cardinality fields become structured metadata instead, which stays
+      # filterable without exploding the index.
+      - structured_metadata:
+          traceId:
+          spanId:
+          logger:
+
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+          # Fall back to Docker's own timestamp when a line is not ECS JSON — a
+          # JVM stack-trace continuation, or startup output emitted before
+          # logging is configured.
+          action_on_failure: fudge
+
+      - output:
+          source: msg

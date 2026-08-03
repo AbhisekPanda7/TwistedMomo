@@ -48,7 +48,7 @@ Environment variables are read by Vite at build/dev time and must be prefixed `V
 
 `.env` is gitignored — never commit real values. `.env.example` documents the shape and is committed.
 
-For production (Vercel), set `VITE_API_BASE_URL` to the deployed backend's URL (e.g. `https://<your-render-app>.onrender.com/api/v1`) in the Vercel project's environment variables.
+In production this is **not** an environment variable on the running container. Vite inlines every `VITE_*` value into the bundle at build time, so the production URL is passed as a Docker build argument in `.github/workflows/frontend-image.yml` (`API_BASE_URL`, currently `https://api.twistedmomos.tech/api/v1`). Changing it means rebuilding the image, not editing a variable in Dokploy.
 
 ## Project layout
 
@@ -65,4 +65,10 @@ The `@/*` import alias resolves to `src/*` (configured in `vite.config.ts` and `
 
 ## Deployment
 
-Deployed on Vercel with this directory (`frontend/`) as the project's **Root Directory** — set that in the Vercel project settings. Build command and output directory are the framework defaults for Vite (`npm run build`, `dist/`).
+Built to static assets and served by nginx on the same Hostinger VPS as the API, reached at `https://twistedmomos.tech` through a Cloudflare Tunnel. No port is published on the host — `cloudflared` connects to the container over the Docker network.
+
+`Dockerfile.prod` builds `dist/` and copies it into `nginx:alpine`. Its nginx config falls back to `index.html` for any unmatched path, which is what lets React Router handle a deep link like `/admin/orders` on a hard refresh; hashed assets under `/assets/` are cached for a year, `index.html` never.
+
+`.github/workflows/frontend-image.yml` lints, type-checks (via `npm run build`), builds the image, pushes it to GHCR as `:latest` and `:<commit-sha>`, then triggers a Dokploy redeploy. Roll back by pinning `FRONTEND_IMAGE` to a previous sha in the Dokploy environment.
+
+The full provisioning runbook is [`../infra/README.md`](../infra/README.md); `Dockerfile` (no `.prod`) remains the local dev server and is not used in production.

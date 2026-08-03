@@ -19,3 +19,6 @@ Thumbs.db
 # Logs
 logs
 *.log
+
+# Infra secrets — see infra/.gitignore for the full rules
+infra/**/.env

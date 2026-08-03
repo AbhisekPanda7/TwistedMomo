@@ -1,0 +1,62 @@
+# A separate Dokploy stack from the application, so logging can be restarted
+# without touching the API.
+
+services:
+  loki:
+    image: grafana/loki:3.3.2
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    networks:
+      - observability
+    # No published ports: Loki is written by Promtail and read by Grafana, both on
+    # this network. Nothing outside it needs access.
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    restart: unless-stopped
+    depends_on:
+      - loki
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      # Read-only: Promtail needs container discovery and log files, never the
+      # ability to control the daemon. A writable Docker socket is host root.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - promtail-positions:/tmp
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    restart: unless-stopped
+    depends_on:
+      - loki
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      # Single-operator dashboard, not a portal.
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      # Loopback only, reached through an SSH tunnel over Tailscale. Never bound
+      # to 0.0.0.0 — Grafana can read every log line the application emits,
+      # including request paths and stack traces.
+      - "127.0.0.1:3001:3000"
+    networks:
+      - observability
+
+volumes:
+  loki-data:
+  promtail-positions:
+  grafana-data:
+
+networks:
+  observability:
+    driver: overlay
+    attachable: false

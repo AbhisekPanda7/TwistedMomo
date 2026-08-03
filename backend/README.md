@@ -12,7 +12,7 @@ All customer- and admin-facing features are complete (Phases 1–5). This phase 
 
 - **Refresh token rotation with reuse detection.** `POST /auth/refresh` now revokes the presented token and issues a new one every time (previously it just reissued a new access token against the same long-lived refresh token — a gap flagged back in Phase 1). If an *already-revoked* token is presented — a strong signal it was stolen and replayed after the legitimate client rotated past it — every refresh token that user holds is revoked, forcing all of their sessions to re-authenticate.
 - **Login rate limiting.** `POST /auth/login` now locks out an email for 15 minutes after 5 failed attempts within a 15-minute window (`429 Too Many Requests`). In-memory and per-instance by design — see `LoginRateLimiter`'s javadoc for the tradeoff if this ever needs to run on more than one instance.
-- **Unit test suite** (28 tests, `./mvnw test`) covering the logic most likely to regress silently: JWT issuance/validation, refresh rotation and reuse detection, cart merge/availability/removal rules, and the order status transition allow-list. Two of these tests are direct regression guards for real bugs caught during manual verification earlier in the build (cart-item removal via the `Cart.items` collection rather than a direct repository delete, and reuse detection's revoke-all actually committing — see below).
+- **Unit test suite** (34 tests, `./mvnw test`) covering the logic most likely to regress silently: JWT issuance/validation, refresh rotation and reuse detection, cart merge/availability/removal rules, and the order status transition allow-list. Two of these tests are direct regression guards for real bugs caught during manual verification earlier in the build (cart-item removal via the `Cart.items` collection rather than a direct repository delete, and reuse detection's revoke-all actually committing — see below).
 
 Every prior phase remains available: auth & users (Phase 1), catalog (Phase 2), cart (Phase 3), checkout/orders (Phase 4), and the full `/admin` console (Phase 5).
 
@@ -58,7 +58,7 @@ All request/response bodies are JSON. All errors (validation, auth, not-found, u
 `CategoryRequest` / `MenuItemRequest`: same shape as the response minus server-generated fields (`id`); `slug` must be lowercase kebab-case and unique.
 `PageResponse<T>`: `{ content: T[], page, size, totalElements, totalPages }`
 
-Uploaded images are served back from `/uploads/**` (see `app.upload.dir` — local disk in dev, and **ephemeral on Render** until this is pointed at object storage instead).
+Uploaded images are served back from `/uploads/**` (see `app.upload.dir` — local disk in dev; in production a named Docker volume that survives redeploys and is captured by the nightly backup, until this is pointed at object storage instead).
 
 The full menu (31 items across 8 categories) is seeded by `V4__seed_catalog_data.sql`, ported directly from the frontend's original static menu data.
 
@@ -140,23 +140,25 @@ Placing an order consumes the caller's cart (clears it) and snapshots each line'
 | Profile | Purpose | Config file |
 |---|---|---|
 | `dev` | Local development against local MySQL | `application-dev.yml` |
-| `prod` | Deployed on Render, database on AWS RDS MySQL | `application-prod.yml` |
+| `prod` | Hostinger VPS under Dokploy, MySQL as a container in the same stack | `application-prod.yml` |
 
 Profile is selected via `SPRING_PROFILES_ACTIVE` (defaults to `dev` if unset — see `application.yml`).
 
-**Production environment variables** (set in the Render dashboard, never committed):
+**Production environment variables** (set in the Dokploy service's Environment tab, never committed — the full template is `infra/app/.env.example`):
 
 | Variable | Example |
 |---|---|
 | `SPRING_PROFILES_ACTIVE` | `prod` |
-| `SPRING_DATASOURCE_URL` | `jdbc:mysql://<rds-endpoint>:3306/twisted_momos?useSSL=true&requireSSL=true&serverTimezone=UTC` |
-| `SPRING_DATASOURCE_USERNAME` | RDS master/app username |
-| `SPRING_DATASOURCE_PASSWORD` | RDS password |
-| `CORS_ALLOWED_ORIGINS` | `https://<your-vercel-domain>` |
+| `SPRING_DATASOURCE_URL` | `jdbc:mysql://mysql:3306/twisted_momos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
+| `SPRING_DATASOURCE_USERNAME` | application DB user (not root) |
+| `SPRING_DATASOURCE_PASSWORD` | that user's password |
+| `CORS_ALLOWED_ORIGINS` | `https://twistedmomos.tech` |
 | `JWT_SECRET` | long random string (32+ bytes), e.g. `openssl rand -base64 48` |
-| `PORT` | set automatically by Render |
+| `PORT` | optional; defaults to `8080` |
 
-Switching the production database later (e.g. to a Hostinger-provided MySQL) is a matter of changing these four datasource values — no code or migration changes.
+`useSSL=false` is correct here: the database is on an isolated overlay network with no published port, reachable only by the backend container.
+
+Switching the production database later (e.g. to a managed MySQL) is a matter of changing these four datasource values — no code or migration changes.
 
 ## Database migrations
 
@@ -179,9 +181,11 @@ Unit tests only (Mockito-mocked repositories, no database required) — fast and
 
 ## Known limitations
 
-- **Uploaded images are ephemeral on Render** — `FileStorageService` writes to local disk, which does not survive a redeploy. Fine for now; swap to S3-compatible object storage before this matters.
-- **Login rate limiting is per-instance, in-memory** (`LoginRateLimiter`) — correct for the current single-instance Render deployment, but wouldn't share state across multiple instances if this ever scales horizontally. Swap the backing map for Redis (or similar) at that point.
-- **No CI pipeline yet** — `./mvnw test` and the frontend's `npm run build`/`tsc` are meant to be wired into one before this goes to a team of more than one.
+- **Uploaded images live on a single box** — `FileStorageService` writes to local disk, bound to a named Docker volume so they survive a redeploy and are captured by the nightly backup. Swap to S3-compatible object storage before a second host exists.
+- **Login rate limiting is per-instance, in-memory** (`LoginRateLimiter`) — correct for the current single-instance deployment, but wouldn't share state across multiple instances if this ever scales horizontally. Swap the backing map for Redis (or similar) at that point.
+- **Dokploy stores environment variables in plaintext** in its internal Postgres, so panel access is equivalent to holding every secret. Mitigated by keeping the panel off the public internet; see `infra/SECURITY.md`.
+- **One production host, no replication** — recovery is restore-from-backup (`infra/bootstrap/backup.sh`).
+- **CI covers the backend only** — `.github/workflows/backend-image.yml` runs the tests, builds the image, and triggers a redeploy. The frontend's `npm run build`/`tsc` is still run by hand.
 
 ## Roadmap
 

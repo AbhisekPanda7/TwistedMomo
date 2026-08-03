@@ -1,0 +1,9 @@
+# Real secrets never get committed — only the .env.example templates beside them.
+.env
+*.env
+!.env.example
+
+# Cloudflare tunnel credentials, if ever written to disk rather than passed as a token
+cert.pem
+*.json
+!package.json
