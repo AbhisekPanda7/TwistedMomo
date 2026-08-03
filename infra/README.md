@@ -480,8 +480,12 @@ image* → **Run workflow**, and the same for *frontend image*.
 
 1. Dokploy → Create Project → `twistedmomos`.
 2. Inside it → Create Service → **Compose**.
-3. Provider GitHub, repo `AbhisekPanda7/TwistedMomo`, branch `main`, compose path
-   `infra/app/compose.yml`.
+3. Source. Provider **Git** with URL
+   `https://github.com/AbhisekPanda7/TwistedMomo.git`, branch `main`, compose path
+   `infra/app/compose.yml`. The repository is public, so no credentials are
+   needed — and unlike the GitHub App provider, this needs no approval from the
+   repository owner, which matters when you are a collaborator rather than the
+   owner.
 4. Environment tab → paste `infra/app/.env.example` and replace every `change-me`.
    Generate secrets with:
    ```bash
@@ -493,6 +497,22 @@ image* → **Run workflow**, and the same for *frontend image*.
 5. Set `CLOUDFLARE_TUNNEL_TOKEN` to the token from step 9.
 6. Deploy. Watch the logs until Flyway reports the migrations applied and Boot
    logs `Started BackendApplication`.
+
+**If a deploy fails and you then change anything about a network in this file,
+tear the stack down before redeploying.** Docker does not recreate an existing
+network when its definition changes, so the old one silently survives and the
+next deploy is applied against it. The symptom is not a network error — it is
+`java.net.UnknownHostException: mysql` buried at the bottom of a Spring bean
+failure, because the backend never joined the network MySQL is on:
+
+```bash
+docker rm -f $(docker ps -aq --filter name=twistedmomos-app)
+docker network rm $(docker network ls -q --filter name=twistedmomos-app)
+docker network ls | grep twistedmomos    # must print nothing
+```
+
+Named volumes (`mysql-data`, `backend-uploads`) are untouched by this, so no data
+is lost.
 
 Verify the tunnel connected:
 
