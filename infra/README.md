@@ -542,18 +542,41 @@ to the wrong host in the network tab rather than as a build failure.
 
 ## 11. Deploy the observability stack
 
+A separate Dokploy service from the application, so logging can be restarted
+without touching the API.
+
 1. Dokploy → same project → Create Service → **Compose**.
-2. Compose path `infra/observability/compose.yml`.
+2. Source: provider **Git**, URL
+   `https://github.com/AbhisekPanda7/TwistedMomo.git`, branch `main`, compose path
+   `infra/observability/compose.yml`.
 3. Environment tab → paste `infra/observability/.env.example`, replacing
-   `change-me-long-random` with `openssl rand -base64 24`.
+   `change-me-long-random` with `openssl rand -base64 24`, and setting
+   `GRAFANA_BIND_IP` to this host's Tailscale address (`tailscale ip -4`).
 4. Deploy.
 
-**Reaching Grafana.** It binds to loopback, so it is reached through an SSH tunnel
-over Tailscale:
+**Reaching Grafana.** It binds to the Tailscale interface, so any device on the
+tailnet reaches it by MagicDNS name — no tunnel, no port forward:
+
+```
+http://twistedmomos-prod:3001
+```
+
+Confirm it is bound to that interface and not to `0.0.0.0`:
 
 ```bash
-ssh -L 3001:127.0.0.1:3001 admin-deploy@twistedmomos-prod
-# then open http://localhost:3001
+ss -tlnp | grep 3001
+# LISTEN 0 4096 100.x.y.z:3001
+```
+
+`0.0.0.0:3001` there means `GRAFANA_BIND_IP` was unset and the panel is exposed to
+the internet — Docker publishes ports through its own iptables chain, ahead of
+ufw, so the firewall will not save you. Fix the variable and redeploy rather than
+adding a DROP rule on top.
+
+Verify from off-network that it is not reachable publicly:
+
+```bash
+nc -vz -w 5 <vps-public-ip> 3001    # must time out
 ```
 
 Add the data source: Connections → Add data source → **Loki** → URL
