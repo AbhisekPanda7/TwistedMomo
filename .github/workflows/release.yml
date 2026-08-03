@@ -1,0 +1,128 @@
+# Promotes an already-built image to production.
+#
+# The build workflows push :v0.0.N and :<sha> but never :latest. This workflow is
+# the only thing that moves :latest, which is the tag Dokploy pulls — so nothing
+# reaches production without passing through the approval gate below.
+#
+# Promotion is a retag by digest, not a rebuild: the image that ships is bit
+# for bit the one that was tested. A rebuild could pick up a moved base image or
+# a changed dependency and quietly differ from what was approved.
+
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to release'
+        required: true
+        type: choice
+        options:
+          - backend
+          - frontend
+      version:
+        description: 'Version to promote, e.g. v0.0.43 (see the package tag list)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Blocks here until a required reviewer approves, before any step runs.
+    # NOTE: this only gates if the `production` environment has required
+    # reviewers configured in repo settings. Without them it runs straight
+    # through — the gate fails open, silently.
+    environment: production
+    permissions:
+      contents: write   # create the git tag
+      packages: write   # retag in GHCR
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image name
+        id: img
+        run: |
+          case "${{ inputs.service }}" in
+            backend)  echo "name=abhisekpanda7/twistedmomo-backend"  >> "$GITHUB_OUTPUT" ;;
+            frontend) echo "name=abhisekpanda7/twistedmomo-frontend" >> "$GITHUB_OUTPUT" ;;
+            *) echo "unknown service: ${{ inputs.service }}" >&2; exit 1 ;;
+          esac
+
+      - name: Validate version format
+        run: |
+          if ! printf '%s' "${{ inputs.version }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Version must look like v0.0.43, got '${{ inputs.version }}'" >&2
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Fail with a readable message rather than letting the retag below error
+      # out on a missing manifest. A typo'd version is the likely cause.
+      - name: Verify the build exists
+        id: verify
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ steps.img.outputs.name }}"
+          if ! docker buildx imagetools inspect "$IMAGE:${{ inputs.version }}" > /dev/null 2>&1; then
+            echo "No image $IMAGE:${{ inputs.version }} in GHCR." >&2
+            echo "Check the package tag list for a version that was actually built." >&2
+            exit 1
+          fi
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE:${{ inputs.version }}" \
+            --format '{{println .Manifest.Digest}}' | head -1)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Promoting $IMAGE:${{ inputs.version }} ($DIGEST)"
+
+      - name: Point :latest at this version
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ steps.img.outputs.name }}"
+          docker buildx imagetools create \
+            --tag "$IMAGE:latest" \
+            "$IMAGE:${{ inputs.version }}"
+
+      # Tagged per service: backend and frontend version independently, so a
+      # bare v0.0.43 would be ambiguous about which one shipped.
+      - name: Tag the release in git
+        run: |
+          TAG="${{ inputs.service }}-${{ inputs.version }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$TAG" > /dev/null 2>&1; then
+            echo "Tag $TAG already exists — skipping tag creation."
+          else
+            git tag -a "$TAG" -m "Release ${{ inputs.service }} ${{ inputs.version }}"
+            git push origin "$TAG"
+          fi
+
+      - name: Trigger Dokploy redeploy
+        # The webhook URL is a secret: anyone holding it can trigger a deploy.
+        # Dokploy pulls :latest, which now resolves to the promoted digest.
+        #
+        # One webhook per stack, so this recreates every container — releasing
+        # the backend restarts the frontend too. That is safe: only this workflow
+        # moves :latest, so the other service redeploys the same image it was
+        # already running. Per-service restarts would need a webhook per Dokploy
+        # service, which is not worth the extra configuration at this size.
+        run: |
+          curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
+            || { echo "Dokploy webhook failed"; exit 1; }
+
+      - name: Summary
+        run: |
+          {
+            echo "### Released ${{ inputs.service }} \`${{ inputs.version }}\`"
+            echo ""
+            echo "Digest: \`${{ steps.verify.outputs.digest }}\`"
+            echo ""
+            echo "\`:latest\` now points here; Dokploy redeploy triggered."
+            echo ""
+            echo "Rollback: run this workflow again with an earlier version."
+          } >> "$GITHUB_STEP_SUMMARY"
