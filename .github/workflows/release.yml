@@ -28,6 +28,23 @@ on:
 env:
   REGISTRY: ghcr.io
 
+# Shared with infra-deploy.yml: both fire the same Dokploy webhook, which
+# recreates the entire stack. Without a common group these two workflows cannot
+# see each other — GitHub scopes concurrency per workflow by default — so an
+# infra redeploy and a release approved seconds apart would both hit Dokploy
+# mid-pull. Renaming this group in one file silently unpairs them.
+#
+# This queues the second run rather than cancelling it: a release that has
+# already moved :latest must still reach the webhook, or production stays on the
+# old image with no indication anything was skipped.
+#
+# Note this bounds GitHub jobs, not Dokploy. The webhook is fire-and-forget —
+# curl returns when Dokploy accepts the request, not when the pull settles — so
+# a webhook can still land while a previous deploy is converging.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
