@@ -1,19 +1,19 @@
 # Redeploys the stack after a compose change. No build: a change to compose.yml
 # needs the current images re-applied, not new ones.
 #
-# This exists because compose-only changes matched no workflow before it. The
+# This exists because compose-only changes had no way to reach production. The
 # frontend healthcheck fix in 3ca357d was committed and then sat undeployed for
 # three hours while the container reported unhealthy — the repo was right and
-# production was stale, with nothing to reconcile them.
+# production was stale, with nothing to reconcile them. Run this after merging a
+# compose change.
 
 name: infra deploy
 
+# Manual only. A compose change lands on main with the merge, but applying it to
+# production is a separate decision — compose edits often need a matching
+# environment-variable change in the Dokploy UI first, and firing automatically
+# would deploy the new file against the old variables.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'infra/**'
-      - '.github/workflows/infra-deploy.yml'
   workflow_dispatch:
 
 jobs:
@@ -22,6 +22,16 @@ jobs:
     # Same approval gate as release.yml — this changes production.
     environment: production
     steps:
+      # The Dokploy panel is tailnet-only, so the webhook host does not resolve
+      # from a stock runner. See release.yml for why this is preferable to
+      # exposing the panel publicly.
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       # Dokploy reads compose from its own configured git source, so this
       # workflow only signals it to re-pull. Anything that must change inside
       # Dokploy's environment variables is still a manual edit in its UI.
