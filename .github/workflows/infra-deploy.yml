@@ -16,6 +16,12 @@ name: infra deploy
 on:
   workflow_dispatch:
 
+# Must match the group in release.yml — see the comment there for why these two
+# workflows share one lock.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
