@@ -8,8 +8,10 @@ import com.twistedmomos.backend.shared.exception.ResourceNotFoundException;
 import com.twistedmomos.backend.shared.config.CurrentTrace;
 import com.twistedmomos.backend.shared.dto.response.ErrorResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 class GlobalExceptionHandlerTest {
@@ -42,5 +44,17 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().traceId()).isNull();
+    }
+
+    /** A path with no mapping is the client asking for something absent, not a fault of ours. */
+    @Test
+    void reportsAnUnmappedPathAsNotFound() {
+        CurrentTrace currentTrace = mock(CurrentTrace.class);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/does-not-exist");
+
+        ResponseEntity<ErrorResponse> response = new GlobalExceptionHandler(currentTrace)
+                .handleNoResource(new NoResourceFoundException(HttpMethod.POST, "/api/v1", "/auth/does-not-exist"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

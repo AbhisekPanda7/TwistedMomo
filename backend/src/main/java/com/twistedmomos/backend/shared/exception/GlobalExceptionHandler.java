@@ -15,6 +15,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Every failure path in the API — validation, domain, auth, or unexpected — resolves to one ErrorResponse shape. */
 @Slf4j
@@ -47,6 +49,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, "You do not have permission to perform this action", request, null);
+    }
+
+    /**
+     * An unmapped path is a client mistake, not a server fault. Without this it falls to
+     * the catch-all below and answers 500, which reads as "we are broken" and buries real
+     * faults in the error logs.
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNoResource(Exception ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "The requested resource was not found", request, null);
     }
 
     @ExceptionHandler(Exception.class)
