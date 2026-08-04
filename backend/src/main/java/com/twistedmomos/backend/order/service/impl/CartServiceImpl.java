@@ -6,6 +6,7 @@ import com.twistedmomos.backend.order.dto.response.CartItemResponse;
 import com.twistedmomos.backend.order.dto.response.CartResponse;
 import com.twistedmomos.backend.order.entity.Cart;
 import com.twistedmomos.backend.order.entity.CartItem;
+import com.twistedmomos.backend.order.mapper.CartMapper;
 import com.twistedmomos.backend.restaurant.entity.MenuItem;
 import com.twistedmomos.backend.auth.entity.User;
 import com.twistedmomos.backend.order.exception.ItemUnavailableException;
@@ -36,11 +37,12 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final MenuItemRepository menuItemRepository;
     private final UserRepository userRepository;
+    private final CartMapper cartMapper;
 
     @Override
     @Transactional
     public CartResponse getCart(Long userId) {
-        return toResponse(getOrCreateCart(userId));
+        return cartMapper.toResponse(getOrCreateCart(userId));
     }
 
     @Override
@@ -80,7 +82,7 @@ public class CartServiceImpl implements CartService {
         log.info("Cart item added: cartId={} menuItemId={} quantity={}",
                 cart.getId(), menuItem.getId(), applied);
 
-        return toResponse(reload(userId));
+        return cartMapper.toResponse(reload(userId));
     }
 
     @Override
@@ -103,7 +105,7 @@ public class CartServiceImpl implements CartService {
         log.info("Cart item updated: cartId={} cartItemId={} from={} to={}",
                 cart.getId(), cartItemId, previous, request.quantity());
 
-        return toResponse(reload(userId));
+        return cartMapper.toResponse(reload(userId));
     }
 
     @Override
@@ -123,7 +125,7 @@ public class CartServiceImpl implements CartService {
         }
         log.info("Cart item removed: cartId={} cartItemId={} remaining={}",
                 cart.getId(), cartItemId, cart.getItems().size());
-        return toResponse(cart);
+        return cartMapper.toResponse(cart);
     }
 
     @Override
@@ -134,7 +136,7 @@ public class CartServiceImpl implements CartService {
         // orphanRemoval on Cart.items deletes the rows on flush — no explicit repository call needed.
         cart.getItems().clear();
         log.info("Cart cleared: cartId={} itemsRemoved={}", cart.getId(), removed);
-        return toResponse(cart);
+        return cartMapper.toResponse(cart);
     }
 
     private Cart getOrCreateCart(Long userId) {
@@ -155,32 +157,5 @@ public class CartServiceImpl implements CartService {
                 });
     }
 
-    private CartResponse toResponse(Cart cart) {
-        List<CartItemResponse> items = cart.getItems().stream()
-                .sorted(Comparator.comparing(CartItem::getId))
-                .map(this::toItemResponse)
-                .toList();
 
-        int totalItems = items.stream().mapToInt(CartItemResponse::quantity).sum();
-        BigDecimal subtotal = items.stream()
-                .map(CartItemResponse::lineTotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return new CartResponse(cart.getId(), items, totalItems, subtotal);
-    }
-
-    private CartItemResponse toItemResponse(CartItem item) {
-        MenuItem menuItem = item.getMenuItem();
-        BigDecimal lineTotal = menuItem.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
-        return new CartItemResponse(
-                item.getId(),
-                menuItem.getId(),
-                menuItem.getName(),
-                menuItem.getImageUrl(),
-                menuItem.getPrice(),
-                menuItem.isAvailable(),
-                item.getQuantity(),
-                lineTotal
-        );
-    }
 }

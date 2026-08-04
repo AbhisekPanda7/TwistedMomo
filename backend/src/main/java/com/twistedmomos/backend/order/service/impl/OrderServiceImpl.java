@@ -11,6 +11,8 @@ import com.twistedmomos.backend.restaurant.entity.MenuItem;
 import com.twistedmomos.backend.order.entity.Order;
 import com.twistedmomos.backend.order.entity.OrderItem;
 import com.twistedmomos.backend.order.entity.OrderStatus;
+import com.twistedmomos.backend.order.event.OrderPlacedEvent;
+import com.twistedmomos.backend.order.mapper.OrderMapper;
 import com.twistedmomos.backend.auth.entity.User;
 import com.twistedmomos.backend.order.exception.EmailNotVerifiedException;
 import com.twistedmomos.backend.order.exception.EmptyCartException;
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,29 +40,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class OrderServiceImpl implements OrderService {
 
-    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
-            OrderStatus.PENDING, EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),
-            OrderStatus.CONFIRMED, EnumSet.of(OrderStatus.PREPARING, OrderStatus.CANCELLED),
-            OrderStatus.PREPARING, EnumSet.of(OrderStatus.READY, OrderStatus.CANCELLED),
-            OrderStatus.READY, EnumSet.of(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED),
-            OrderStatus.OUT_FOR_DELIVERY, EnumSet.of(OrderStatus.DELIVERED),
-            OrderStatus.DELIVERED, EnumSet.noneOf(OrderStatus.class),
-            OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class)
-    );
-
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher events;
+    private final OrderMapper orderMapper;
 
     @Override
     @Transactional
     public OrderResponse placeOrder(Long userId, PlaceOrderRequest request) {
         log.info("Placing order: userId={}", userId);
 
+        // Fetched rather than referenced: the response carries the customer's name and
+        // email, so a lazy proxy here would only force a second query later.
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User " + userId + " not found"));
+
         // Ordering is where a reachable address actually matters — we need to be able to
         // contact them about the order. Checked before the cart so the message names the
         // real problem instead of reporting an empty cart.
-        if (!userRepository.findEmailVerifiedById(userId).orElse(false)) {
+        if (!user.isEmailVerified()) {
             log.warn("Order rejected — email not verified: userId={}", userId);
             throw new EmailNotVerifiedException(
                     "Confirm your email before placing an order. Check your inbox for the link.");
@@ -82,9 +82,8 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        User userRef = userRepository.getReferenceById(userId);
         Order order = Order.builder()
-                .user(userRef)
+                .user(user)
                 .status(OrderStatus.PENDING)
                 .subtotal(BigDecimal.ZERO)
                 .totalItems(0)
@@ -126,13 +125,20 @@ public class OrderServiceImpl implements OrderService {
         cart.getItems().clear();
         log.info("Cart cleared after order: cartId={} orderId={}", cart.getId(), saved.getId());
 
-        return toResponse(reloadWithDetails(saved.getId()));
+        // Written to the event_publication table inside this transaction, so a crash
+        // before the listener runs replays it rather than losing it. Subscribers act
+        // after commit and cannot fail the order.
+        events.publishEvent(toPlacedEvent(saved));
+
+        // Everything the response needs is already loaded — re-querying the order
+        // here cost an extra round trip per placement for nothing.
+        return orderMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
     public PageResponse<OrderSummaryResponse> listMyOrders(Long userId, Pageable pageable) {
-        return PageResponse.of(orderRepository.findByUserId(userId, pageable).map(this::toSummary));
+        return PageResponse.of(orderRepository.findByUserId(userId, pageable).map(orderMapper::toSummary));
     }
 
     @Override
@@ -146,7 +152,7 @@ public class OrderServiceImpl implements OrderService {
                     log.warn("Order not found or not owned: orderId={} userId={}", orderId, userId);
                     return new ResourceNotFoundException("Order " + orderId + " not found");
                 });
-        return toResponse(order);
+        return orderMapper.toResponse(order);
     }
 
     @Override
@@ -160,7 +166,7 @@ public class OrderServiceImpl implements OrderService {
                             orderId, userId);
                     return new ResourceNotFoundException("Order " + orderId + " not found");
                 });
-        if (order.getStatus() != OrderStatus.PENDING) {
+        if (!order.getStatus().isCancellableByCustomer()) {
             log.warn("Cancellation rejected — status not cancellable: orderId={} status={}",
                     orderId, order.getStatus());
             throw new InvalidOrderStatusTransitionException(
@@ -169,23 +175,23 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         log.info("Order cancelled: orderId={} userId={} from={} to={}",
                 orderId, userId, OrderStatus.PENDING, OrderStatus.CANCELLED);
-        return toResponse(order);
+        return orderMapper.toResponse(order);
     }
 
     @Override
     @Transactional
     public PageResponse<OrderSummaryResponse> listAllOrders(String statusFilter, Pageable pageable) {
         if (statusFilter == null || statusFilter.isBlank()) {
-            return PageResponse.of(orderRepository.findAllWithUser(pageable).map(this::toSummary));
+            return PageResponse.of(orderRepository.findAllWithUser(pageable).map(orderMapper::toSummary));
         }
         OrderStatus status = parseStatus(statusFilter);
-        return PageResponse.of(orderRepository.findByStatusWithUser(status, pageable).map(this::toSummary));
+        return PageResponse.of(orderRepository.findByStatusWithUser(status, pageable).map(orderMapper::toSummary));
     }
 
     @Override
     @Transactional
     public OrderResponse getOrder(Long orderId) {
-        return toResponse(reloadWithDetails(orderId));
+        return orderMapper.toResponse(reloadWithDetails(orderId));
     }
 
     @Override
@@ -196,16 +202,31 @@ public class OrderServiceImpl implements OrderService {
         OrderStatus current = order.getStatus();
         log.info("Updating order status: orderId={} from={} to={}", orderId, current, newStatus);
 
-        Set<OrderStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(current, Set.of());
-        if (!allowed.contains(newStatus)) {
+        if (!current.canTransitionTo(newStatus)) {
             log.warn("Status transition rejected: orderId={} from={} to={} allowed={}",
-                    orderId, current, newStatus, allowed);
+                    orderId, current, newStatus, current.allowedNext());
             throw new InvalidOrderStatusTransitionException(
                     "Cannot move order from " + current + " to " + newStatus);
         }
         order.setStatus(newStatus);
         log.info("Order status changed: orderId={} from={} to={}", orderId, current, newStatus);
-        return toResponse(order);
+        return orderMapper.toResponse(order);
+    }
+
+    private OrderPlacedEvent toPlacedEvent(Order order) {
+        return new OrderPlacedEvent(
+                order.getId(),
+                order.getUser().getId(),
+                order.getCreatedAt(),
+                order.getSubtotal(),
+                order.getItems().stream()
+                        .map(item -> new OrderPlacedEvent.LineItem(
+                                item.getMenuItem() == null ? null : item.getMenuItem().getId(),
+                                item.getMenuItemName(),
+                                item.getQuantity(),
+                                item.getUnitPrice(),
+                                item.getLineTotal()))
+                        .toList());
     }
 
     private Order reloadWithDetails(Long orderId) {
@@ -225,47 +246,6 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private OrderSummaryResponse toSummary(Order order) {
-        return new OrderSummaryResponse(
-                order.getId(),
-                order.getStatus().name(),
-                order.getTotalItems(),
-                order.getSubtotal(),
-                order.getUser().getName(),
-                order.getUser().getEmail(),
-                order.getCreatedAt()
-        );
-    }
 
-    private OrderResponse toResponse(Order order) {
-        return new OrderResponse(
-                order.getId(),
-                order.getStatus().name(),
-                order.getItems().stream().map(this::toItemResponse).toList(),
-                order.getTotalItems(),
-                order.getSubtotal(),
-                order.getRecipientName(),
-                order.getPhone(),
-                order.getAddressLine1(),
-                order.getAddressLine2(),
-                order.getCity(),
-                order.getPostalCode(),
-                order.getNotes(),
-                order.getUser().getName(),
-                order.getUser().getEmail(),
-                order.getCreatedAt(),
-                order.getUpdatedAt()
-        );
-    }
 
-    private OrderItemResponse toItemResponse(OrderItem item) {
-        return new OrderItemResponse(
-                item.getId(),
-                item.getMenuItem() != null ? item.getMenuItem().getId() : null,
-                item.getMenuItemName(),
-                item.getQuantity(),
-                item.getUnitPrice(),
-                item.getLineTotal()
-        );
-    }
 }
