@@ -66,7 +66,8 @@ public class EmailVerificationService {
                 .build());
 
         String link = "%s/verify-email?token=%s".formatted(linkProperties.frontendBaseUrl(), token);
-        notificationSender.sendEmail(user.getEmail(), "Confirm your email", body(user.getName(), link));
+        notificationSender.sendEmail(
+                user.getEmail(), "Confirm your email", VerificationEmailTemplate.render(user.getName(), link));
         log.info("Verification link issued: userId={}", user.getId());
     }
 
@@ -99,14 +100,5 @@ public class EmailVerificationService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is required by the JRE spec", e);
         }
-    }
-
-    private static String body(String name, String link) {
-        return """
-               <p>Hi %s,</p>
-               <p>Confirm your email to finish setting up your Twisted Momos account.</p>
-               <p><a href="%s">Confirm my email</a></p>
-               <p>The link works once and expires in 24 hours. If you did not sign up, ignore this.</p>
-               """.formatted(name, link);
     }
 }
