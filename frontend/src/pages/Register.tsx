@@ -39,7 +39,8 @@ export default function Register() {
     setSubmitting(true);
     try {
       await register({ name, email, password, phone: phone || undefined });
-      navigate("/", { replace: true });
+      // Straight home would leave the verification email unexplained.
+      navigate("/verify-email", { replace: true });
     } catch (err) {
       setError(toApiError(err, "Couldn't create your account. Please try again."));
     } finally {

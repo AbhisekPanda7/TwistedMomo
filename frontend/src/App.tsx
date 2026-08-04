@@ -13,6 +13,7 @@ const Gallery = lazy(() => import("./pages/Gallery"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const Cart = lazy(() => import("./pages/Cart"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const Orders = lazy(() => import("./pages/Orders"));
@@ -40,6 +41,7 @@ export default function App() {
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route
                   path="/cart"
                   element={
