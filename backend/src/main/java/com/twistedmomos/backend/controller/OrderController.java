@@ -4,7 +4,7 @@ import com.twistedmomos.backend.dto.request.PlaceOrderRequest;
 import com.twistedmomos.backend.dto.response.OrderResponse;
 import com.twistedmomos.backend.dto.response.OrderSummaryResponse;
 import com.twistedmomos.backend.shared.dto.response.PageResponse;
-import com.twistedmomos.backend.security.CustomUserDetails;
+import com.twistedmomos.backend.auth.security.CustomUserDetails;
 import com.twistedmomos.backend.service.OrderService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

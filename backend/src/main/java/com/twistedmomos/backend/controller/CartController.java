@@ -3,7 +3,7 @@ package com.twistedmomos.backend.controller;
 import com.twistedmomos.backend.dto.request.AddCartItemRequest;
 import com.twistedmomos.backend.dto.request.UpdateCartItemRequest;
 import com.twistedmomos.backend.dto.response.CartResponse;
-import com.twistedmomos.backend.security.CustomUserDetails;
+import com.twistedmomos.backend.auth.security.CustomUserDetails;
 import com.twistedmomos.backend.service.CartService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

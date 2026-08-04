@@ -1,5 +1,6 @@
 package com.twistedmomos.backend.entity;
 
+import com.twistedmomos.backend.auth.entity.User;
 import com.twistedmomos.backend.shared.entity.BaseEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
