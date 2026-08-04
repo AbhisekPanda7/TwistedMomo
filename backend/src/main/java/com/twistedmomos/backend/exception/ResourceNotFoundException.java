@@ -1,8 +1,11 @@
 package com.twistedmomos.backend.exception;
 
-public class ResourceNotFoundException extends RuntimeException {
+import com.twistedmomos.backend.shared.exception.DomainException;
+import org.springframework.http.HttpStatus;
+
+public class ResourceNotFoundException extends DomainException {
 
     public ResourceNotFoundException(String message) {
-        super(message);
+        super(HttpStatus.NOT_FOUND, message);
     }
 }

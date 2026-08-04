@@ -1,8 +1,11 @@
 package com.twistedmomos.backend.exception;
 
-public class ItemUnavailableException extends RuntimeException {
+import com.twistedmomos.backend.shared.exception.DomainException;
+import org.springframework.http.HttpStatus;
+
+public class ItemUnavailableException extends DomainException {
 
     public ItemUnavailableException(String message) {
-        super(message);
+        super(HttpStatus.CONFLICT, message);
     }
 }

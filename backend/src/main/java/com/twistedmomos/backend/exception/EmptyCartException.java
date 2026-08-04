@@ -1,8 +1,11 @@
 package com.twistedmomos.backend.exception;
 
-public class EmptyCartException extends RuntimeException {
+import com.twistedmomos.backend.shared.exception.DomainException;
+import org.springframework.http.HttpStatus;
+
+public class EmptyCartException extends DomainException {
 
     public EmptyCartException(String message) {
-        super(message);
+        super(HttpStatus.BAD_REQUEST, message);
     }
 }
