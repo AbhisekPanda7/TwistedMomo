@@ -6,6 +6,7 @@ import { ButtonLink } from "../ui/Button";
 import { BagIcon } from "../ui/Icons";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+import { hasRole } from "../../lib/tokenStorage";
 
 const links = [
   { to: "/", label: "Home" },
@@ -107,7 +108,7 @@ export default function Navbar() {
                 >
                   Orders
                 </Link>
-                {user.role === "ADMIN" && (
+                {hasRole(user, "ADMIN") && (
                   <Link
                     to="/admin"
                     data-cursor-hover
@@ -238,7 +239,7 @@ export default function Navbar() {
                 </motion.div>
               )}
 
-              {user?.role === "ADMIN" && (
+              {hasRole(user, "ADMIN") && (
                 <motion.div
                   initial={{ opacity: 0, x: -40 }}
                   animate={{ opacity: 1, x: 0 }}
