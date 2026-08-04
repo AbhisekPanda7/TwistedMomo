@@ -36,6 +36,9 @@ public class SecurityConfig {
             "/api/v1/auth/**",
             "/actuator/health",
             "/actuator/health/**",
+            // Public deliberately: it reports the running build, and the repository
+            // is public, so the commit id reveals nothing new.
+            "/actuator/info",
             "/uploads/**"
     };
 

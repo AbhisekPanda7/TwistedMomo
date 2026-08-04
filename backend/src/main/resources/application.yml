@@ -38,10 +38,22 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info
   endpoint:
     health:
       show-details: never
+    info:
+      # Answers "which build is actually running?" in one request. Deploys have
+      # silently no-opped before — a webhook Dokploy declined with a 200, and a
+      # cached :latest — and both were invisible until behaviour was inspected.
+      access: read-only
+  info:
+    # The repository is public, so a commit id discloses nothing that is not
+    # already readable on GitHub.
+    git:
+      mode: simple
+    build:
+      enabled: true
   tracing:
     sampling:
       # Boot's default is 0.1. Sampling gates whether a span is *recorded and

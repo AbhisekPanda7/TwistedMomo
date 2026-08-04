@@ -67,6 +67,10 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.prod
           push: true
+          # .git is not in the build context, so the SHA has to be handed in for
+          # /actuator/info to identify the running build.
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
           # The VPS is x86. Matching it exactly keeps the build fast; add
           # linux/arm64 only if the host architecture changes.
           platforms: linux/amd64

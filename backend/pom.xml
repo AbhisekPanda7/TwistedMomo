@@ -24,6 +24,9 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <jjwt.version>0.13.0</jjwt.version>
         <springdoc.version>3.0.3</springdoc.version>
+        <git-commit-id.version>9.0.2</git-commit-id.version>
+        <!-- Overridden by the Docker build; see backend/Dockerfile.prod. -->
+        <build.git.commit>unknown</build.git.commit>
         <spring-modulith.version>2.1.0</spring-modulith.version>
     </properties>
 
@@ -194,6 +197,49 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- Writes META-INF/build-info.properties, which /actuator/info
+                             serves. Without it "is my code deployed?" can only be
+                             answered by inferring from behaviour. -->
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                        <configuration>
+                            <additionalProperties>
+                                <!-- The image build has no .git, so the SHA arrives as a
+                                     -D property from CI. Local builds leave it "unknown"
+                                     and rely on the git block instead. -->
+                                <commit>${build.git.commit}</commit>
+                            </additionalProperties>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>${git-commit-id.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- CI builds from a shallow clone; a missing .git must not fail it. -->
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <includeOnlyProperties>
+                        <!-- simple mode reads git.commit.id, not the abbrev variant;
+                             filtering that one out leaves the block empty. -->
+                        <includeOnlyProperty>^git.commit.id$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.commit.time$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.branch$</includeOnlyProperty>
+                    </includeOnlyProperties>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
