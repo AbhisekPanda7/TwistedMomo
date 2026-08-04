@@ -8,7 +8,7 @@
 # Compose targets detach; follow output with `make logs` / `make logs-be`.
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-be down clean logs logs-be be be-jar test test-one lint fe fe-build db db-shell db-reset health api verify
+.PHONY: help up up-be up-fe down clean logs logs-be logs-fe be be-jar test test-one lint fe fe-build db db-shell db-reset health api verify
 
 BACKEND  := backend
 FRONTEND := frontend
@@ -27,6 +27,10 @@ up:
 up-be:
 	docker compose up --build -d backend
 
+## up-fe: frontend only, detached (pulls up backend + MySQL too)
+up-fe:
+	docker compose up --build -d frontend
+
 ## down: stop the stack, keep the database
 down:
 	docker compose down
@@ -42,6 +46,10 @@ logs:
 ## logs-be: follow backend container logs
 logs-be:
 	docker compose logs -f backend
+
+## logs-fe: follow frontend container logs
+logs-fe:
+	docker compose logs -f frontend
 
 # --- backend on the host --------------------------------------------------
 # Needs MySQL reachable on :3306 — `make db` starts just that container.
