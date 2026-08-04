@@ -1,8 +1,11 @@
-package com.twistedmomos.backend.exception;
+package com.twistedmomos.backend.restaurant.exception;
 
-public class InvalidFileException extends RuntimeException {
+import com.twistedmomos.backend.shared.exception.DomainException;
+import org.springframework.http.HttpStatus;
+
+public class InvalidFileException extends DomainException {
 
     public InvalidFileException(String message) {
-        super(message);
+        super(HttpStatus.BAD_REQUEST, message);
     }
 }

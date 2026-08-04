@@ -1,7 +1,7 @@
-package com.twistedmomos.backend.controller;
+package com.twistedmomos.backend.restaurant.controller;
 
-import com.twistedmomos.backend.dto.response.CategoryResponse;
-import com.twistedmomos.backend.service.CategoryService;
+import com.twistedmomos.backend.restaurant.dto.response.CategoryResponse;
+import com.twistedmomos.backend.restaurant.service.CategoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

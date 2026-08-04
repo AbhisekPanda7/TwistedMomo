@@ -1,8 +1,8 @@
-package com.twistedmomos.backend.exception;
+package com.twistedmomos.backend.shared.exception;
 
-import com.twistedmomos.backend.config.CurrentTrace;
-import com.twistedmomos.backend.dto.response.ErrorResponse;
-import com.twistedmomos.backend.dto.response.ValidationErrorItem;
+import com.twistedmomos.backend.shared.config.CurrentTrace;
+import com.twistedmomos.backend.shared.dto.response.ErrorResponse;
+import com.twistedmomos.backend.shared.dto.response.ValidationErrorItem;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
@@ -32,49 +32,10 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Validation failed", request, errors);
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
-        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(InvalidRefreshTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidRefreshToken(InvalidRefreshTokenException ex, HttpServletRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(ResourceInUseException.class)
-    public ResponseEntity<ErrorResponse> handleResourceInUse(ResourceInUseException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(InvalidFileException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidFile(InvalidFileException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(ItemUnavailableException.class)
-    public ResponseEntity<ErrorResponse> handleItemUnavailable(ItemUnavailableException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(EmptyCartException.class)
-    public ResponseEntity<ErrorResponse> handleEmptyCart(EmptyCartException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(InvalidOrderStatusTransitionException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidOrderStatusTransition(InvalidOrderStatusTransitionException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(TooManyAttemptsException.class)
-    public ResponseEntity<ErrorResponse> handleTooManyAttempts(TooManyAttemptsException ex, HttpServletRequest request) {
-        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request, null);
+    /** One method for every module's failures — each exception carries its own status. */
+    @ExceptionHandler(DomainException.class)
+    public ResponseEntity<ErrorResponse> handleDomain(DomainException ex, HttpServletRequest request) {
+        return build(ex.getStatus(), ex.getMessage(), request, null);
     }
 
     /** Covers BadCredentialsException, DisabledException, UsernameNotFoundException, etc. — one 401 shape for all of them. */

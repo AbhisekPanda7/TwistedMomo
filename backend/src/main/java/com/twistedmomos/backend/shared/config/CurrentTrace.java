@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.config;
+package com.twistedmomos.backend.shared.config;
 
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;

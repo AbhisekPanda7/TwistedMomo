@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.config;
+package com.twistedmomos.backend.restaurant.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

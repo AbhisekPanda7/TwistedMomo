@@ -1,6 +1,6 @@
-package com.twistedmomos.backend.repository.specification;
+package com.twistedmomos.backend.restaurant.repository.specification;
 
-import com.twistedmomos.backend.entity.MenuItem;
+import com.twistedmomos.backend.restaurant.entity.MenuItem;
 import jakarta.persistence.criteria.JoinType;
 import org.springframework.data.jpa.domain.Specification;
 

@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.dto.response;
+package com.twistedmomos.backend.shared.dto.response;
 
 import java.util.List;
 import org.springframework.data.domain.Page;

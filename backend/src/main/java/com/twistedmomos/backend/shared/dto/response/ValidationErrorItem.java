@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.dto.response;
+package com.twistedmomos.backend.shared.dto.response;
 
 public record ValidationErrorItem(
         String field,

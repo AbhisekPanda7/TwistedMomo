@@ -1,7 +1,7 @@
-package com.twistedmomos.backend.mapper;
+package com.twistedmomos.backend.restaurant.mapper;
 
-import com.twistedmomos.backend.dto.response.MenuItemResponse;
-import com.twistedmomos.backend.entity.MenuItem;
+import com.twistedmomos.backend.restaurant.dto.response.MenuItemResponse;
+import com.twistedmomos.backend.restaurant.entity.MenuItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

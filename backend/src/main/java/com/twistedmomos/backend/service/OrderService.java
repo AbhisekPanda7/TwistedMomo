@@ -3,7 +3,7 @@ package com.twistedmomos.backend.service;
 import com.twistedmomos.backend.dto.request.PlaceOrderRequest;
 import com.twistedmomos.backend.dto.response.OrderResponse;
 import com.twistedmomos.backend.dto.response.OrderSummaryResponse;
-import com.twistedmomos.backend.dto.response.PageResponse;
+import com.twistedmomos.backend.shared.dto.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 
 public interface OrderService {

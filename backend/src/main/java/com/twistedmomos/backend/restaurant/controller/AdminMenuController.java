@@ -1,10 +1,10 @@
-package com.twistedmomos.backend.controller;
+package com.twistedmomos.backend.restaurant.controller;
 
-import com.twistedmomos.backend.dto.request.AvailabilityRequest;
-import com.twistedmomos.backend.dto.request.MenuItemRequest;
-import com.twistedmomos.backend.dto.response.MenuItemResponse;
-import com.twistedmomos.backend.dto.response.PageResponse;
-import com.twistedmomos.backend.service.MenuItemService;
+import com.twistedmomos.backend.restaurant.dto.request.AvailabilityRequest;
+import com.twistedmomos.backend.restaurant.dto.request.MenuItemRequest;
+import com.twistedmomos.backend.restaurant.dto.response.MenuItemResponse;
+import com.twistedmomos.backend.shared.dto.response.PageResponse;
+import com.twistedmomos.backend.restaurant.service.MenuItemService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

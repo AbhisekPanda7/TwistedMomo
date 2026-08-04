@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.dto.response;
+package com.twistedmomos.backend.restaurant.dto.response;
 
 public record CategoryResponse(
         Long id,

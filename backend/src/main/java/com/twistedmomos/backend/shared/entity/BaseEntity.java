@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.entity;
+package com.twistedmomos.backend.shared.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;

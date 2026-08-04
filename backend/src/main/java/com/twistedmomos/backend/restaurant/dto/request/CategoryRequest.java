@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.dto.request;
+package com.twistedmomos.backend.restaurant.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

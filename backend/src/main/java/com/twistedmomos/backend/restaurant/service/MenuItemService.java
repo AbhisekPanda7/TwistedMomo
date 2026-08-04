@@ -1,8 +1,8 @@
-package com.twistedmomos.backend.service;
+package com.twistedmomos.backend.restaurant.service;
 
-import com.twistedmomos.backend.dto.request.MenuItemRequest;
-import com.twistedmomos.backend.dto.response.MenuItemResponse;
-import com.twistedmomos.backend.dto.response.PageResponse;
+import com.twistedmomos.backend.restaurant.dto.request.MenuItemRequest;
+import com.twistedmomos.backend.restaurant.dto.response.MenuItemResponse;
+import com.twistedmomos.backend.shared.dto.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 

@@ -1,15 +1,15 @@
-package com.twistedmomos.backend.service.impl;
+package com.twistedmomos.backend.restaurant.service.impl;
 
-import com.twistedmomos.backend.dto.request.CategoryRequest;
-import com.twistedmomos.backend.dto.response.CategoryResponse;
-import com.twistedmomos.backend.entity.Category;
+import com.twistedmomos.backend.restaurant.dto.request.CategoryRequest;
+import com.twistedmomos.backend.restaurant.dto.response.CategoryResponse;
+import com.twistedmomos.backend.restaurant.entity.Category;
 import com.twistedmomos.backend.exception.DuplicateResourceException;
-import com.twistedmomos.backend.exception.ResourceInUseException;
+import com.twistedmomos.backend.restaurant.exception.ResourceInUseException;
 import com.twistedmomos.backend.exception.ResourceNotFoundException;
-import com.twistedmomos.backend.mapper.CategoryMapper;
-import com.twistedmomos.backend.repository.CategoryRepository;
-import com.twistedmomos.backend.repository.MenuItemRepository;
-import com.twistedmomos.backend.service.CategoryService;
+import com.twistedmomos.backend.restaurant.mapper.CategoryMapper;
+import com.twistedmomos.backend.restaurant.repository.CategoryRepository;
+import com.twistedmomos.backend.restaurant.repository.MenuItemRepository;
+import com.twistedmomos.backend.restaurant.service.CategoryService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;

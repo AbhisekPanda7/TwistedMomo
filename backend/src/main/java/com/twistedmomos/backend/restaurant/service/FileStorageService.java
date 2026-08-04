@@ -1,7 +1,7 @@
-package com.twistedmomos.backend.service;
+package com.twistedmomos.backend.restaurant.service;
 
-import com.twistedmomos.backend.config.FileStorageProperties;
-import com.twistedmomos.backend.exception.InvalidFileException;
+import com.twistedmomos.backend.restaurant.config.FileStorageProperties;
+import com.twistedmomos.backend.restaurant.exception.InvalidFileException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

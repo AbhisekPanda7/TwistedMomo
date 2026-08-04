@@ -1,6 +1,6 @@
-package com.twistedmomos.backend.repository;
+package com.twistedmomos.backend.restaurant.repository;
 
-import com.twistedmomos.backend.entity.MenuItem;
+import com.twistedmomos.backend.restaurant.entity.MenuItem;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

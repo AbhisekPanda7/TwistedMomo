@@ -1,5 +1,7 @@
 package com.twistedmomos.backend.entity;
 
+import com.twistedmomos.backend.restaurant.entity.MenuItem;
+import com.twistedmomos.backend.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

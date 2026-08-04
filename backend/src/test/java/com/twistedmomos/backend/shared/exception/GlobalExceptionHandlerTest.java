@@ -1,11 +1,12 @@
-package com.twistedmomos.backend.exception;
+package com.twistedmomos.backend.shared.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.twistedmomos.backend.config.CurrentTrace;
-import com.twistedmomos.backend.dto.response.ErrorResponse;
+import com.twistedmomos.backend.exception.ResourceNotFoundException;
+import com.twistedmomos.backend.shared.config.CurrentTrace;
+import com.twistedmomos.backend.shared.dto.response.ErrorResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ class GlobalExceptionHandlerTest {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/orders/42");
 
         ResponseEntity<ErrorResponse> response = new GlobalExceptionHandler(currentTrace)
-                .handleNotFound(new ResourceNotFoundException("Order not found"), request);
+                .handleDomain(new ResourceNotFoundException("Order not found"), request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).isNotNull();
@@ -37,7 +38,7 @@ class GlobalExceptionHandlerTest {
         when(currentTrace.traceId()).thenReturn(null);
 
         ResponseEntity<ErrorResponse> response = new GlobalExceptionHandler(currentTrace)
-                .handleNotFound(new ResourceNotFoundException("Order not found"), new MockHttpServletRequest());
+                .handleDomain(new ResourceNotFoundException("Order not found"), new MockHttpServletRequest());
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().traceId()).isNull();

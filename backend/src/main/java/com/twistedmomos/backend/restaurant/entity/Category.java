@@ -1,5 +1,6 @@
-package com.twistedmomos.backend.entity;
+package com.twistedmomos.backend.restaurant.entity;
 
+import com.twistedmomos.backend.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

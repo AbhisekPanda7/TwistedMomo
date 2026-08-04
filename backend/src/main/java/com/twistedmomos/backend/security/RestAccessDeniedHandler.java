@@ -1,7 +1,7 @@
 package com.twistedmomos.backend.security;
 
-import com.twistedmomos.backend.config.CurrentTrace;
-import com.twistedmomos.backend.dto.response.ErrorResponse;
+import com.twistedmomos.backend.shared.config.CurrentTrace;
+import com.twistedmomos.backend.shared.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;

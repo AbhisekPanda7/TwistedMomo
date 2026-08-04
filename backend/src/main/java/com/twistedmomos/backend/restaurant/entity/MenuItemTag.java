@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.entity;
+package com.twistedmomos.backend.restaurant.entity;
 
 public enum MenuItemTag {
     BESTSELLER,
