@@ -6,13 +6,14 @@ import Reveal from "../components/ui/Reveal";
 import ErrorNote from "../components/ui/ErrorNote";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
+import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { toApiError, type ApiError } from "../lib/apiError";
 
 const inputClass =
   "w-full rounded-xl border border-ink-600 bg-ink-900 px-4 py-3 font-sans text-sm text-paper-50 placeholder:text-paper-200/30 outline-none transition-all duration-200 focus:border-gold-400 focus:ring-4 focus:ring-gold-400/10";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -90,6 +91,25 @@ export default function Login() {
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? "Logging In…" : "Log In"}
               </Button>
+
+              <div className="flex items-center gap-3 pt-2">
+                <div className="h-px flex-1 bg-ink-600" />
+                <span className="font-sans text-xs uppercase tracking-wider text-paper-200/40">or</span>
+                <div className="h-px flex-1 bg-ink-600" />
+              </div>
+
+              <GoogleSignInButton
+                onCredential={async (idToken) => {
+                  setError(null);
+                  try {
+                    await loginWithGoogle(idToken);
+                    navigate(redirectTo, { replace: true });
+                  } catch (err) {
+                    setError(toApiError(err, "Could not sign in with Google."));
+                  }
+                }}
+                onError={(message) => setError({ message, traceId: null, status: null })}
+              />
 
               <p className="text-center font-sans text-sm text-paper-200/60">
                 New here?{" "}
