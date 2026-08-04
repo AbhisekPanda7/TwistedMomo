@@ -88,6 +88,8 @@ services:
       # default, so a missing value fails startup instead of failing silently.
       RESEND_API_KEY: ${RESEND_API_KEY}
       NOTIFICATION_FROM_EMAIL: ${NOTIFICATION_FROM_EMAIL}
+      # Audience every Google ID token is checked against. Not a secret.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     volumes:
       # Uploads survive redeploys on a named volume. This is the single-box
       # stand-in for object storage; it is backed up by infra/bootstrap/backup.sh.

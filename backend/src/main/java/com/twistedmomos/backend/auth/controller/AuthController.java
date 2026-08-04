@@ -1,5 +1,6 @@
 package com.twistedmomos.backend.auth.controller;
 
+import com.twistedmomos.backend.auth.dto.request.GoogleSignInRequest;
 import com.twistedmomos.backend.auth.dto.request.LoginRequest;
 import com.twistedmomos.backend.auth.dto.request.RefreshRequest;
 import com.twistedmomos.backend.auth.dto.request.RegisterRequest;
@@ -62,5 +63,10 @@ public class AuthController {
     public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
         authService.resendVerification(request.email());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleSignInRequest request) {
+        return ResponseEntity.ok(authService.signInWithGoogle(request.idToken()));
     }
 }

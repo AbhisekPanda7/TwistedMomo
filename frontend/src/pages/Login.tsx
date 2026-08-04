@@ -6,13 +6,14 @@ import Reveal from "../components/ui/Reveal";
 import ErrorNote from "../components/ui/ErrorNote";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
+import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { toApiError, type ApiError } from "../lib/apiError";
 
 const inputClass =
   "w-full rounded-xl border border-ink-600 bg-ink-900 px-4 py-3 font-sans text-sm text-paper-50 placeholder:text-paper-200/30 outline-none transition-all duration-200 focus:border-gold-400 focus:ring-4 focus:ring-gold-400/10";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,11 +21,14 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
   const redirectTo = (location.state as { from?: string } | null)?.from ?? "/";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    // Enter still submits a disabled-button form, so the guard belongs here too.
+    if (googleSubmitting) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -87,9 +91,46 @@ export default function Login() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={submitting}>
+              <Button type="submit" className="w-full" disabled={submitting || googleSubmitting}>
                 {submitting ? "Logging In…" : "Log In"}
               </Button>
+
+              <div className="flex items-center gap-3 pt-2">
+                <div className="h-px flex-1 bg-ink-600" />
+                <span className="font-sans text-xs uppercase tracking-wider text-paper-200/40">or</span>
+                <div className="h-px flex-1 bg-ink-600" />
+              </div>
+
+              <div className="relative">
+                <GoogleSignInButton
+                  onCredential={async (idToken) => {
+                    setError(null);
+                    setGoogleSubmitting(true);
+                    try {
+                      await loginWithGoogle(idToken);
+                      navigate(redirectTo, { replace: true });
+                    } catch (err) {
+                      setError(toApiError(err, "Could not sign in with Google."));
+                      // Only on failure: a success unmounts this page, and clearing
+                      // state on the way out warns about setting state after unmount.
+                      setGoogleSubmitting(false);
+                    }
+                  }}
+                  onError={(message) => setError({ message, traceId: null, status: null })}
+                />
+
+                {googleSubmitting && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-3 rounded-2xl bg-ink-900">
+                    <span
+                      className="h-4 w-4 animate-spin rounded-full border-2 border-gold-400/30 border-t-gold-400"
+                      aria-hidden="true"
+                    />
+                    <span className="font-sans text-sm text-paper-200/80" role="status">
+                      Signing you in…
+                    </span>
+                  </div>
+                )}
+              </div>
 
               <p className="text-center font-sans text-sm text-paper-200/60">
                 New here?{" "}

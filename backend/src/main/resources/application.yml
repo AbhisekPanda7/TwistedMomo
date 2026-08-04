@@ -68,8 +68,8 @@ app:
   jwt:
     # app.jwt.secret is intentionally NOT set here — see application-dev.yml
     # (safe fallback) and application-prod.yml (required, no fallback).
-    access-token-expiration-ms: 900000        # 15 minutes
-    refresh-token-expiration-ms: 2592000000   # 30 days
+    access-token-expiration-ms: 900000 # 15 minutes
+    refresh-token-expiration-ms: 2592000000 # 30 days
   upload:
     # Local disk. NOTE: on Render this does NOT survive a redeploy (ephemeral
     # filesystem) — fine for now, swap FileStorageService for S3-compatible
@@ -85,3 +85,7 @@ app:
     api-key: ${RESEND_API_KEY:}
     from-name: ${NOTIFICATION_FROM_NAME:Twisted Momos}
     from-email: ${NOTIFICATION_FROM_EMAIL:noreply@twistedmomos.tech}
+  google:
+    # Not a secret — it ships in the frontend bundle. It is the audience every
+    # Google ID token is checked against, so a wrong value rejects every sign-in.
+    client-id: ${GOOGLE_CLIENT_ID}

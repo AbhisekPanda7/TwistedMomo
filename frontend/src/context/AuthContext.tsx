@@ -15,6 +15,7 @@ type LoginPayload = { email: string; password: string };
 type AuthContextValue = {
   user: AuthUser | null;
   login: (payload: LoginPayload) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
 };
@@ -35,6 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (payload: LoginPayload) => {
     const { data } = await api.post<AuthSession>("/auth/login", payload);
+    storeSession(data);
+    setUser(data.user);
+  }, []);
+
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    const { data } = await api.post<AuthSession>("/auth/google", { idToken });
     storeSession(data);
     setUser(data.user);
   }, []);
@@ -61,7 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // tree to re-render — including "zombie" instances Framer Motion keeps mounted during
   // exit animations, which is exactly what caused the redirect race ProtectedRoute now
   // guards against.
-  const value = useMemo(() => ({ user, login, register, logout }), [user, login, register, logout]);
+  const value = useMemo(
+    () => ({ user, login, loginWithGoogle, register, logout }),
+    [user, login, loginWithGoogle, register, logout],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

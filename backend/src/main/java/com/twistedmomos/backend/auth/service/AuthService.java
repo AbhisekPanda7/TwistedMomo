@@ -17,4 +17,7 @@ public interface AuthService {
 
     /** Silent when the address is unknown or already verified — the caller must not learn which. */
     void resendVerification(String email);
+
+    /** Verifies the Google ID token, resolves it to a user, and issues our own token pair. */
+    AuthResponse signInWithGoogle(String idToken);
 }

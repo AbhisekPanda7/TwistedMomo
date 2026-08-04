@@ -16,6 +16,8 @@ import com.twistedmomos.backend.auth.security.CustomUserDetails;
 import com.twistedmomos.backend.auth.security.JwtService;
 import com.twistedmomos.backend.auth.security.LoginRateLimiter;
 import com.twistedmomos.backend.auth.service.AuthService;
+import com.twistedmomos.backend.auth.security.GoogleIdTokenVerifier;
+import com.twistedmomos.backend.auth.service.GoogleSignInService;
 import com.twistedmomos.backend.auth.service.EmailVerificationService;
 import com.twistedmomos.backend.auth.service.RefreshTokenService;
 import java.util.HashSet;
@@ -47,6 +49,8 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final LoginRateLimiter loginRateLimiter;
     private final EmailVerificationService emailVerificationService;
+    private final GoogleIdTokenVerifier googleIdTokenVerifier;
+    private final GoogleSignInService googleSignInService;
 
     @Override
     @Transactional
@@ -142,5 +146,14 @@ public class AuthServiceImpl implements AuthService {
         // No exception when the address is unknown: a 404 here would confirm which
         // addresses are registered. The endpoint answers 204 either way.
         userRepository.findByEmail(email).ifPresent(emailVerificationService::sendVerificationLink);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse signInWithGoogle(String idToken) {
+        var identity = googleIdTokenVerifier.verify(idToken);
+        User user = googleSignInService.resolve(identity);
+        log.info("Google sign-in succeeded: userId={}", user.getId());
+        return buildAuthResponse(user);
     }
 }
