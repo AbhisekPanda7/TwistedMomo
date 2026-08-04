@@ -52,6 +52,10 @@ services:
   # environment of its own — pointing it at a different API means a new image.
   frontend:
     image: ${FRONTEND_IMAGE}
+    # Docker reuses a locally cached tag, and :latest moves with every release —
+    # so without this a redeploy faithfully restarts the image it already had.
+    # Every release reported success while production stayed on an old build.
+    pull_policy: always
     restart: unless-stopped
     networks:
       - dokploy-network
@@ -69,6 +73,10 @@ services:
 
   backend:
     image: ${BACKEND_IMAGE}
+    # Docker reuses a locally cached tag, and :latest moves with every release —
+    # so without this a redeploy faithfully restarts the image it already had.
+    # Every release reported success while production stayed on an old build.
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       mysql:
