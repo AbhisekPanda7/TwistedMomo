@@ -4,6 +4,8 @@
 #   make            list every target
 #   make be         run the backend on the host (fastest loop)
 #   make up         whole stack in Docker
+#
+# Compose targets detach; follow output with `make logs` / `make logs-be`.
 
 .DEFAULT_GOAL := help
 .PHONY: help up up-be down clean logs logs-be be be-jar test test-one lint fe fe-build db db-shell db-reset health api verify
@@ -17,13 +19,13 @@ help:
 
 # --- docker stack ---------------------------------------------------------
 
-## up: build and start everything (backend :8081, frontend :5173)
+## up: build and start everything detached (backend :8081, frontend :5173)
 up:
-	docker compose up --build
+	docker compose up --build -d
 
-## up-be: backend + MySQL only, no frontend
+## up-be: backend + MySQL only, detached
 up-be:
-	docker compose up --build backend
+	docker compose up --build -d backend
 
 ## down: stop the stack, keep the database
 down:
