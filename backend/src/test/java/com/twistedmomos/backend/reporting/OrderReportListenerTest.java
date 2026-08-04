@@ -25,6 +25,10 @@ class OrderReportListenerTest {
 
     private static final Instant PLACED_AT = Instant.parse("2026-08-04T12:00:00Z");
 
+    private static final OrderPlacedEvent.DeliveryAddress ADDRESS =
+            new OrderPlacedEvent.DeliveryAddress(
+                    "Tester", "9999999999", "1 Test St", null, "Cuttack", "753014");
+
     private static final OrderPlacedEvent EVENT = new OrderPlacedEvent(
             100L,
             7L,
@@ -34,7 +38,8 @@ class OrderReportListenerTest {
                     new OrderPlacedEvent.LineItem(
                             1L, "Veg Momo", 2, new BigDecimal("80.00"), new BigDecimal("160.00")),
                     new OrderPlacedEvent.LineItem(
-                            2L, "Chowmein", 1, new BigDecimal("100.00"), new BigDecimal("100.00"))));
+                            2L, "Chowmein", 1, new BigDecimal("100.00"), new BigDecimal("100.00"))),
+            ADDRESS);
 
     @Mock private OrderReportRepository reportRepository;
 
@@ -80,7 +85,8 @@ class OrderReportListenerTest {
         OrderPlacedEvent orphaned = new OrderPlacedEvent(
                 101L, 7L, PLACED_AT, new BigDecimal("80.00"),
                 List.of(new OrderPlacedEvent.LineItem(
-                        null, "Discontinued Momo", 1, new BigDecimal("80.00"), new BigDecimal("80.00"))));
+                        null, "Discontinued Momo", 1, new BigDecimal("80.00"), new BigDecimal("80.00"))),
+                ADDRESS);
 
         listener.on(orphaned);
 

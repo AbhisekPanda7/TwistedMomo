@@ -226,7 +226,14 @@ public class OrderServiceImpl implements OrderService {
                                 item.getQuantity(),
                                 item.getUnitPrice(),
                                 item.getLineTotal()))
-                        .toList());
+                        .toList(),
+                new OrderPlacedEvent.DeliveryAddress(
+                        order.getRecipientName(),
+                        order.getPhone(),
+                        order.getAddressLine1(),
+                        order.getAddressLine2(),
+                        order.getCity(),
+                        order.getPostalCode()));
     }
 
     private Order reloadWithDetails(Long orderId) {
