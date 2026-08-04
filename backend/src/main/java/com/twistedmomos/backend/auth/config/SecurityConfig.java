@@ -1,6 +1,6 @@
 package com.twistedmomos.backend.auth.config;
 
-import com.twistedmomos.backend.config.TraceResponseFilter;
+import com.twistedmomos.backend.shared.config.TraceResponseFilter;
 import com.twistedmomos.backend.auth.security.CustomUserDetailsService;
 import com.twistedmomos.backend.auth.security.JwtAuthenticationFilter;
 import com.twistedmomos.backend.auth.security.RestAccessDeniedHandler;

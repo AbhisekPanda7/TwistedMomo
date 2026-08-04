@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.twistedmomos.backend.exception.ResourceNotFoundException;
+import com.twistedmomos.backend.shared.exception.ResourceNotFoundException;
 import com.twistedmomos.backend.shared.config.CurrentTrace;
 import com.twistedmomos.backend.shared.dto.response.ErrorResponse;
 import org.junit.jupiter.api.Test;

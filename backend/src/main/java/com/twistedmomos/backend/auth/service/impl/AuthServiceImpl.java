@@ -8,7 +8,7 @@ import com.twistedmomos.backend.auth.entity.RefreshToken;
 import com.twistedmomos.backend.auth.entity.Role;
 import com.twistedmomos.backend.auth.entity.RoleName;
 import com.twistedmomos.backend.auth.entity.User;
-import com.twistedmomos.backend.exception.DuplicateResourceException;
+import com.twistedmomos.backend.shared.exception.DuplicateResourceException;
 import com.twistedmomos.backend.auth.mapper.UserMapper;
 import com.twistedmomos.backend.auth.repository.RoleRepository;
 import com.twistedmomos.backend.auth.repository.UserRepository;
