@@ -5,9 +5,11 @@ import PageHero from "../components/ui/PageHero";
 import Reveal from "../components/ui/Reveal";
 import ErrorNote from "../components/ui/ErrorNote";
 import { Button } from "../components/ui/Button";
+import AddressPicker from "../components/checkout/AddressPicker";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { placeOrder } from "../lib/orders";
+import { fetchSavedAddresses, type SavedAddress } from "../lib/addresses";
 import { toApiError, type ApiError } from "../lib/apiError";
 
 const inputClass =
@@ -27,6 +29,8 @@ export default function Checkout() {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
 
   const hasUnavailable = cart?.items.some((item) => !item.available) ?? false;
   // Placing an order clears the cart server-side, which would otherwise re-trigger the
@@ -41,20 +45,34 @@ export default function Checkout() {
     }
   }, [cartLoading, cart, navigate]);
 
+  useEffect(() => {
+    fetchSavedAddresses()
+      .then((list) => {
+        setSavedAddresses(list);
+        // Most recently used first, so the default is the likeliest choice.
+        if (list.length > 0) setSelectedAddressId(list[0].id);
+      })
+      .catch(() => setSavedAddresses([])); // A failure here must not block checkout.
+  }, []);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      const order = await placeOrder({
-        recipientName,
-        phone,
-        addressLine1,
-        addressLine2: addressLine2 || undefined,
-        city,
-        postalCode,
-        notes: notes || undefined,
-      });
+      const order = await placeOrder(
+        selectedAddressId !== null
+          ? { addressId: selectedAddressId, notes: notes || undefined }
+          : {
+              recipientName,
+              phone,
+              addressLine1,
+              addressLine2: addressLine2 || undefined,
+              city,
+              postalCode,
+              notes: notes || undefined,
+            },
+      );
       orderPlacedRef.current = true;
       await refresh();
       navigate(`/orders/${order.id}`, { replace: true });
@@ -97,84 +115,94 @@ export default function Checkout() {
 
               <ErrorNote error={error} />
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
-                    Recipient Name
-                  </label>
-                  <input
-                    required
-                    value={recipientName}
-                    onChange={(e) => setRecipientName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Your name"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
-                    Phone
-                  </label>
-                  <input
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={inputClass}
-                    placeholder="+91 00000 00000"
-                  />
-                </div>
-              </div>
+              <AddressPicker
+                addresses={savedAddresses}
+                selectedId={selectedAddressId}
+                onSelect={setSelectedAddressId}
+              />
 
-              <div>
-                <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
-                  Address Line 1
-                </label>
-                <input
-                  required
-                  value={addressLine1}
-                  onChange={(e) => setAddressLine1(e.target.value)}
-                  className={inputClass}
-                  placeholder="House no., street"
-                />
-              </div>
+              {selectedAddressId === null && (
+                <>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
+                        Recipient Name
+                      </label>
+                      <input
+                        required
+                        value={recipientName}
+                        onChange={(e) => setRecipientName(e.target.value)}
+                        className={inputClass}
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
+                        Phone
+                      </label>
+                      <input
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className={inputClass}
+                        placeholder="+91 00000 00000"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
-                  Address Line 2 <span className="normal-case text-paper-200/40">(optional)</span>
-                </label>
-                <input
-                  value={addressLine2}
-                  onChange={(e) => setAddressLine2(e.target.value)}
-                  className={inputClass}
-                  placeholder="Landmark, apartment, etc."
-                />
-              </div>
+                  <div>
+                    <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
+                      Address Line 1
+                    </label>
+                    <input
+                      required
+                      value={addressLine1}
+                      onChange={(e) => setAddressLine1(e.target.value)}
+                      className={inputClass}
+                      placeholder="House no., street"
+                    />
+                  </div>
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
-                    City
-                  </label>
-                  <input
-                    required
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className={inputClass}
-                    placeholder="City"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
-                    Postal Code
-                  </label>
-                  <input
-                    required
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    className={inputClass}
-                    placeholder="500001"
-                  />
-                </div>
-              </div>
+                  <div>
+                    <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
+                      Address Line 2 <span className="normal-case text-paper-200/40">(optional)</span>
+                    </label>
+                    <input
+                      value={addressLine2}
+                      onChange={(e) => setAddressLine2(e.target.value)}
+                      className={inputClass}
+                      placeholder="Landmark, apartment, etc."
+                    />
+                  </div>
+
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
+                        City
+                      </label>
+                      <input
+                        required
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className={inputClass}
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
+                        Postal Code
+                      </label>
+                      <input
+                        required
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        className={inputClass}
+                        placeholder="500001"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="mb-1.5 block font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60">
