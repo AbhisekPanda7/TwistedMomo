@@ -10,7 +10,13 @@ COPY pom.xml .
 RUN mvn -B dependency:go-offline
 
 COPY src ./src
-RUN mvn -B clean package -DskipTests
+
+# .git is excluded from the build context, so the git-commit-id plugin finds no
+# repository here and /actuator/info would report an empty git block — on exactly
+# the deployed artifact the endpoint exists to identify. CI passes the SHA it
+# already knows, and build-info records it instead.
+ARG GIT_COMMIT=unknown
+RUN mvn -B clean package -DskipTests -Dbuild.git.commit="$GIT_COMMIT"
 
 FROM eclipse-temurin:21-jre AS runtime
 WORKDIR /app
