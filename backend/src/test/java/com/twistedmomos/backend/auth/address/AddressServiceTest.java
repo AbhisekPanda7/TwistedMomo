@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.auth.service;
+package com.twistedmomos.backend.auth.address;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

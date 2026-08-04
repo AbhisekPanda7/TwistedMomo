@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.auth.service;
+package com.twistedmomos.backend.auth.address;
 
 import com.twistedmomos.backend.auth.dto.response.AddressResponse;
 import com.twistedmomos.backend.auth.entity.UserAddress;

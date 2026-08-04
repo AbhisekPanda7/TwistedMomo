@@ -1,6 +1,6 @@
 package com.twistedmomos.backend.order.listener;
 
-import com.twistedmomos.backend.auth.service.AddressService;
+import com.twistedmomos.backend.auth.address.AddressService;
 import com.twistedmomos.backend.order.event.OrderPlacedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -2,7 +2,7 @@ package com.twistedmomos.backend.auth.controller;
 
 import com.twistedmomos.backend.auth.dto.response.AddressResponse;
 import com.twistedmomos.backend.auth.security.CustomUserDetails;
-import com.twistedmomos.backend.auth.service.AddressService;
+import com.twistedmomos.backend.auth.address.AddressService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

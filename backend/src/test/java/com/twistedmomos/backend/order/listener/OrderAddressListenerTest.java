@@ -2,7 +2,7 @@ package com.twistedmomos.backend.order.listener;
 
 import static org.mockito.Mockito.verify;
 
-import com.twistedmomos.backend.auth.service.AddressService;
+import com.twistedmomos.backend.auth.address.AddressService;
 import com.twistedmomos.backend.order.event.OrderPlacedEvent;
 import java.math.BigDecimal;
 import java.time.Instant;
