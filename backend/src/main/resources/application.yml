@@ -20,6 +20,16 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          # Off, and stated explicitly rather than left to the default. Flyway
+          # owns every table in this schema (V7 creates the two Modulith needs).
+          # Modulith would back off when they already exist, but "backs off"
+          # depends on initializer-vs-Flyway ordering at startup; forbidding it
+          # outright is one less thing to reason about during an incident.
+          enabled: false
 
 server:
   port: ${PORT:8080}
