@@ -85,3 +85,7 @@ app:
     api-key: ${RESEND_API_KEY:}
     from-name: ${NOTIFICATION_FROM_NAME:Twisted Momos}
     from-email: ${NOTIFICATION_FROM_EMAIL:noreply@twistedmomos.tech}
+  google:
+    # Not a secret — it ships in the frontend bundle. It is the audience every
+    # Google ID token is checked against, so a wrong value rejects every sign-in.
+    client-id: ${GOOGLE_CLIENT_ID:169514872036-2gtu17rkobtapfbfi2q3901tqp354q9i.apps.googleusercontent.com}
