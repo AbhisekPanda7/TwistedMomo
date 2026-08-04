@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { hasRole } from "../../lib/tokenStorage";
 
 export default function ProtectedRoute({
   children,
@@ -28,7 +29,7 @@ export default function ProtectedRoute({
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (adminOnly && user.role !== "ADMIN") {
+  if (adminOnly && !hasRole(user, "ADMIN")) {
     return <Navigate to="/" replace />;
   }
 

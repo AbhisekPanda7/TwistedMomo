@@ -8,8 +8,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -44,9 +48,30 @@ public class User extends BaseEntity {
     @Column(length = 20)
     private String phone;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"))
+    @Builder.Default
+    private Set<Role> roles = new HashSet<>();
+
+    /** True when the user holds the given role. */
+    public boolean hasRole(RoleName name) {
+        return roles.stream().anyMatch(r -> r.getName() == name);
+    }
+
+    /**
+     * Highest-privilege role. Backs the singular `role` field kept on the API and in
+     * the JWT so clients written against one role keep working; authorization itself
+     * uses the full set.
+     */
+    public RoleName primaryRole() {
+        return roles.stream()
+                .map(Role::getName)
+                .max(Comparator.comparingInt(RoleName::precedence))
+                .orElse(RoleName.CUSTOMER);
+    }
 
     @Column(nullable = false)
     @Builder.Default

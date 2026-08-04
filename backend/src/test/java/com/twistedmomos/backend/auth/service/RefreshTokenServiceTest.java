@@ -1,5 +1,6 @@
 package com.twistedmomos.backend.auth.service;
 
+import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,7 +43,7 @@ class RefreshTokenServiceTest {
     @BeforeEach
     void setUp() {
         Role role = Role.builder().id(1L).name(RoleName.CUSTOMER).build();
-        user = User.builder().id(1L).name("Token Tester").email("token.tester@example.com").role(role).build();
+        user = User.builder().id(1L).name("Token Tester").email("token.tester@example.com").roles(Set.of(role)).build();
     }
 
     @Test

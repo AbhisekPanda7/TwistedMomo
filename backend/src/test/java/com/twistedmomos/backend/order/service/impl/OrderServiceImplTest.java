@@ -1,5 +1,6 @@
 package com.twistedmomos.backend.order.service.impl;
 
+import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -56,7 +57,7 @@ class OrderServiceImplTest {
     @BeforeEach
     void setUp() {
         Role role = Role.builder().id(1L).name(RoleName.CUSTOMER).build();
-        user = User.builder().id(1L).name("Order Tester").email("order.tester@example.com").role(role).build();
+        user = User.builder().id(1L).name("Order Tester").email("order.tester@example.com").roles(Set.of(role)).build();
 
         Category category = Category.builder().id(1L).name("Steam").slug("steam").displayOrder(0).active(true).build();
         momo = MenuItem.builder().id(1L).category(category).name("Veg Momo").slug("veg-momo")
