@@ -24,7 +24,24 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <jjwt.version>0.13.0</jjwt.version>
         <springdoc.version>3.0.3</springdoc.version>
+        <spring-modulith.version>2.1.0</spring-modulith.version>
     </properties>
+
+    <!-- Modulith is not in the Boot BOM. Importing its own BOM keeps every
+         spring-modulith-* artifact on one version; pinning them individually
+         is how module versions silently skew. 2.1.0 builds against
+         spring-boot-autoconfigure 4.1.0 and Spring Framework 7.0.8. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.modulith</groupId>
+                <artifactId>spring-modulith-bom</artifactId>
+                <version>${spring-modulith.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Core -->
@@ -90,6 +107,32 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
+        <!-- Modular monolith. Versions come from the BOM above.
+             starter-jdbc — not starter-jpa — brings the event publication
+             registry (the outbox). The JDBC store is the one with a published,
+             versioned DDL (reference appendix + schemas/v2 inside the jar), so
+             our Flyway migration can be a verbatim copy and an upgrade is a
+             mechanical diff. The JPA store derives its schema from entity
+             mappings that Modulith is free to change: spring-modulith#1543 was
+             exactly that, ddl-auto=validate failing on their entity's
+             nullability. JDBC keeps their tables off our validate surface
+             entirely. We never read publications from application code, so
+             bypassing the EntityManager costs nothing — the write still joins
+             the same Spring transaction. -->
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-actuator</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- Boilerplate reduction -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -132,6 +175,15 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Documenter, for generating the module diagram + canvas from the
+             verified module structure. Test scope: it runs as part of the
+             build, its output is a doc artifact, and none of it belongs in
+             the shipped jar. -->
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-docs</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
