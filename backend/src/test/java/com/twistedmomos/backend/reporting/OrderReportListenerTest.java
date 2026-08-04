@@ -98,4 +98,19 @@ class OrderReportListenerTest {
             assertThat(line.getItemName()).isEqualTo("Discontinued Momo");
         });
     }
+
+    @Test
+    void recordsDeliveryAreaButNotTheStreetAddress() {
+        when(reportRepository.existsByOrderId(100L)).thenReturn(false);
+
+        listener.on(EVENT);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<OrderReportLine>> saved = ArgumentCaptor.forClass(List.class);
+        verify(reportRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).allSatisfy(line -> {
+            assertThat(line.getCity()).isEqualTo("Cuttack");
+            assertThat(line.getPostalCode()).isEqualTo("753014");
+        });
+    }
 }
