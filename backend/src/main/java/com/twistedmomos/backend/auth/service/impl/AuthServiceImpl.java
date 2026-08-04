@@ -17,6 +17,8 @@ import com.twistedmomos.backend.auth.security.JwtService;
 import com.twistedmomos.backend.auth.security.LoginRateLimiter;
 import com.twistedmomos.backend.auth.service.AuthService;
 import com.twistedmomos.backend.auth.service.RefreshTokenService;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -65,7 +67,7 @@ public class AuthServiceImpl implements AuthService {
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .phone(request.phone())
-                .role(customerRole)
+                .roles(new HashSet<>(Set.of(customerRole)))
                 .enabled(true)
                 .build();
         user = userRepository.save(user);
@@ -86,7 +88,7 @@ public class AuthServiceImpl implements AuthService {
                     new UsernamePasswordAuthenticationToken(request.email(), request.password()));
             loginRateLimiter.recordSuccess(request.email());
             User user = ((CustomUserDetails) authentication.getPrincipal()).getUser();
-            log.info("Login succeeded: userId={} role={}", user.getId(), user.getRole().getName());
+            log.info("Login succeeded: userId={} roles={}", user.getId(), user.getRoles().size());
             return buildAuthResponse(user);
         } catch (AuthenticationException ex) {
             // recordFailure logs the attempt count and any resulting lockout — it owns

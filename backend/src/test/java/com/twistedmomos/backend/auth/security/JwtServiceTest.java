@@ -1,5 +1,6 @@
 package com.twistedmomos.backend.auth.security;
 
+import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.twistedmomos.backend.auth.entity.Role;
@@ -22,7 +23,7 @@ class JwtServiceTest {
         jwtService = new JwtService(properties);
 
         Role role = Role.builder().id(1L).name(RoleName.CUSTOMER).build();
-        user = User.builder().id(7L).name("Jwt Tester").email("jwt.tester@example.com").role(role).build();
+        user = User.builder().id(7L).name("Jwt Tester").email("jwt.tester@example.com").roles(Set.of(role)).build();
     }
 
     @Test
