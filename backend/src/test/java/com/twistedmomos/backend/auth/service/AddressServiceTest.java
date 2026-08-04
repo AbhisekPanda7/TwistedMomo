@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,10 +27,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 class AddressServiceTest {
+
+    /** Mirrors AddressService's private field delimiter, so key assertions stay exact. */
+    private static final String DELIM = "\u0001";
 
     @Mock private UserAddressRepository addressRepository;
     @Mock private UserRepository userRepository;
@@ -46,7 +51,7 @@ class AddressServiceTest {
     /** Case and spacing differ, the address does not — one row, not two. */
     @Test
     void treatsCaseAndSpacingDifferencesAsTheSameAddress() {
-        UserAddress existing = addressOf(9L, "1 test st|cuttack|753014");
+        UserAddress existing = addressOf(9L, "1 test st" + DELIM + "cuttack" + DELIM + "753014");
         when(addressRepository.findByUserIdAndNormalizedKey(eq(1L), anyString()))
                 .thenReturn(Optional.of(existing));
 
@@ -69,7 +74,26 @@ class AddressServiceTest {
 
         ArgumentCaptor<UserAddress> saved = ArgumentCaptor.forClass(UserAddress.class);
         verify(addressRepository).save(saved.capture());
-        assertThat(saved.getValue().getNormalizedKey()).isEqualTo("1 test street||cuttack|753014");
+        assertThat(saved.getValue().getNormalizedKey())
+                .isEqualTo("1 test street" + DELIM + DELIM + "cuttack" + DELIM + "753014");
+    }
+
+    /** A "|" inside a field must not let two different addresses collide onto one key. */
+    @Test
+    void treatsFieldsContainingThePipeCharacterAsDistinctAddresses() {
+        when(addressRepository.findByUserIdAndNormalizedKey(anyLong(), anyString()))
+                .thenReturn(Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(addressRepository.findByUserIdOrderByLastUsedAtDesc(anyLong(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.remember(1L, "Tester", "9999999999", "A|B", "C", "Cuttack", "753014");
+        service.remember(1L, "Tester", "9999999999", "A", "B|C", "Cuttack", "753014");
+
+        ArgumentCaptor<UserAddress> saved = ArgumentCaptor.forClass(UserAddress.class);
+        verify(addressRepository, times(2)).save(saved.capture());
+        List<String> keys = saved.getAllValues().stream().map(UserAddress::getNormalizedKey).toList();
+        assertThat(keys.get(0)).isNotEqualTo(keys.get(1));
     }
 
     @Test
@@ -78,7 +102,9 @@ class AddressServiceTest {
                 .thenReturn(Optional.empty());
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         UserAddress oldest = addressOf(2L, "old");
-        when(addressRepository.findByUserIdOrderByLastUsedAtDesc(anyLong(), any(Pageable.class)))
+        // Match only the exact "one row past the cap" page — a regressed offset must fail this test.
+        when(addressRepository.findByUserIdOrderByLastUsedAtDesc(
+                        anyLong(), eq(PageRequest.of(AddressService.MAX_SAVED, 1))))
                 .thenReturn(List.of(oldest));
 
         service.remember(1L, "Tester", "9999999999", "9 New Rd", null, "Cuttack", "753014");

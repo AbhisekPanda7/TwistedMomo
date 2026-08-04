@@ -23,6 +23,9 @@ public class AddressService {
     /** Bounded so the list stays useful without a management screen to prune it. */
     public static final int MAX_SAVED = 5;
 
+    /** Joins normalized fields; not "|" because freeform address text can contain it. */
+    private static final String FIELD_DELIMITER = "\u0001";
+
     private final UserAddressRepository addressRepository;
     private final UserRepository userRepository;
 
@@ -93,7 +96,7 @@ public class AddressService {
      * genuinely different addresses, which is worse than showing one twice.
      */
     private static String normalize(String line1, String line2, String city, String postalCode) {
-        return String.join("|",
+        return String.join(FIELD_DELIMITER,
                 squash(line1), squash(line2), squash(city), squash(postalCode));
     }
 
