@@ -40,6 +40,12 @@ public class GoogleIdTokenVerifier {
 
     public GoogleIdTokenVerifier(GoogleProperties properties) {
         this.properties = properties;
+        // An unset ${GOOGLE_CLIENT_ID} binds as the literal placeholder rather than
+        // failing, and then every audience check silently rejects a perfectly good token.
+        if (properties.clientId() == null || properties.clientId().startsWith("${")) {
+            throw new IllegalStateException(
+                    "GOOGLE_CLIENT_ID is not set — every Google sign-in would be rejected as the wrong audience.");
+        }
     }
 
     /**
@@ -49,9 +55,10 @@ public class GoogleIdTokenVerifier {
     public GoogleIdentity verify(String idToken) {
         Claims claims;
         try {
+            // Issuer and audience are checked below rather than with require*(): Google
+            // uses two issuer spellings, and the audience claim is a set.
             claims = Jwts.parser()
                     .keyLocator(this::locate)
-                    .requireIssuer(null) // checked below against both accepted spellings
                     .build()
                     .parseSignedClaims(idToken)
                     .getPayload();
@@ -64,9 +71,13 @@ public class GoogleIdTokenVerifier {
             log.warn("Google sign-in rejected — unexpected issuer");
             throw new InvalidGoogleTokenException("Could not verify that Google account");
         }
-        if (!properties.clientId().equals(claims.getAudience() == null ? null : claims.getAudience().iterator().next())) {
-            // A token minted for another application would otherwise be accepted here.
-            log.warn("Google sign-in rejected — token was issued for a different application");
+        // aud is a set in the JWT spec; Google sends exactly one, but membership is the
+        // correct test either way. Without this a token minted for another application
+        // would be accepted.
+        Set<String> audience = claims.getAudience();
+        if (audience == null || !audience.contains(properties.clientId())) {
+            log.warn("Google sign-in rejected — token audience {} does not match the configured client id",
+                    audience);
             throw new InvalidGoogleTokenException("Could not verify that Google account");
         }
 

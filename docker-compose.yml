@@ -59,6 +59,9 @@ services:
       # development needs no Resend account. Export RESEND_API_KEY to send for real.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       NOTIFICATION_FROM_EMAIL: ${NOTIFICATION_FROM_EMAIL:-noreply@twistedmomos.tech}
+      # Falls back to the application.yml default when unset — same value, but
+      # passing it means an override in the shell actually reaches the container.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
       - "8081:8080"
     volumes:
@@ -85,6 +88,10 @@ services:
     environment:
       # Resolved by your browser, not by this container — so it is the host's
       VITE_API_BASE_URL: http://localhost:8081/api/v1
+      # Same GOOGLE_CLIENT_ID the backend checks against — they must match or
+      # every token is rejected. The VITE_ prefix is not cosmetic: Vite only
+      # exposes variables that carry it, so renaming this breaks the button.
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
       - "5173:5173"
     volumes:
