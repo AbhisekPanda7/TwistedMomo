@@ -16,7 +16,10 @@ CREATE TABLE user_addresses
     -- Lowercased and whitespace-collapsed line1+line2+city+postal_code. Without
     -- it "1 Test  St " and "1 test st" become two entries a customer cannot
     -- tell apart.
-    normalized_key VARCHAR(255) NOT NULL,
+    -- 600 = worst case 200+200+100+20 source columns plus delimiters, rounded up.
+    -- Do not narrow this: MySQL strict mode rejects an overflowing insert outright,
+    -- and Modulith retries the failing event forever rather than dropping it.
+    normalized_key VARCHAR(600) NOT NULL,
     last_used_at   DATETIME(6)  NOT NULL,
     created_at     DATETIME(6)  NOT NULL,
     CONSTRAINT uk_user_addresses_key UNIQUE (user_id, normalized_key),

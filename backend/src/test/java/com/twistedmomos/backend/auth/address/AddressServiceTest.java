@@ -17,6 +17,7 @@ import com.twistedmomos.backend.auth.entity.UserAddress;
 import com.twistedmomos.backend.auth.repository.UserAddressRepository;
 import com.twistedmomos.backend.auth.repository.UserRepository;
 import com.twistedmomos.backend.shared.exception.ResourceNotFoundException;
+import jakarta.persistence.Column;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -127,6 +128,34 @@ class AddressServiceTest {
 
         assertThatThrownBy(() -> service.findOwned(1L, 77L))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    /**
+     * Worst case: every source field maxed out (200+200+100+20 chars) plus 3 delimiters.
+     * Pins the normalized_key column width against that worst case rather than a guess.
+     */
+    @Test
+    void normalizedKeyFitsTheColumnAtMaximumFieldLengths() throws NoSuchFieldException {
+        when(addressRepository.findByUserIdAndNormalizedKey(anyLong(), anyString()))
+                .thenReturn(Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(addressRepository.findByUserIdOrderByLastUsedAtDesc(anyLong(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        String line1 = "a".repeat(200);
+        String line2 = "b".repeat(200);
+        String city = "c".repeat(100);
+        String postalCode = "d".repeat(20);
+
+        service.remember(1L, "Tester", "9999999999", line1, line2, city, postalCode);
+
+        ArgumentCaptor<UserAddress> saved = ArgumentCaptor.forClass(UserAddress.class);
+        verify(addressRepository).save(saved.capture());
+
+        int columnLimit = UserAddress.class.getDeclaredField("normalizedKey")
+                .getAnnotation(Column.class)
+                .length();
+        assertThat(saved.getValue().getNormalizedKey().length()).isLessThanOrEqualTo(columnLimit);
     }
 
     private UserAddress addressOf(Long id, String key) {

@@ -58,8 +58,11 @@ public class UserAddress {
     @Column(name = "postal_code", nullable = false, length = 20)
     private String postalCode;
 
-    /** Case- and whitespace-normalized, so near-identical typing collapses to one row. */
-    @Column(name = "normalized_key", nullable = false, length = 255)
+    /**
+     * Case- and whitespace-normalized, so near-identical typing collapses to one row.
+     * 600 = worst case 200+200+100+20 source columns plus delimiters, rounded up.
+     */
+    @Column(name = "normalized_key", nullable = false, length = 600)
     private String normalizedKey;
 
     @Column(name = "last_used_at", nullable = false)
