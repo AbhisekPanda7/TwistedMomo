@@ -22,3 +22,7 @@ logs
 
 # Infra secrets — see infra/.gitignore for the full rules
 infra/**/.env
+
+# Compose reads this automatically — it holds the Resend key locally.
+/.env
+.claude
