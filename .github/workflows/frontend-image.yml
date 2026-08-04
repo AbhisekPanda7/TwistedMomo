@@ -22,10 +22,12 @@ env:
   # Compiled into the bundle at build time — Vite does not read this at runtime,
   # so it lives here rather than in the Dokploy environment.
   API_BASE_URL: https://api.twistedmomos.tech/api/v1
-  # Same reason as above: build-time, so Dokploy cannot supply it. Must match the
-  # GOOGLE_CLIENT_ID the backend checks against, or every sign-in is rejected as
-  # the wrong audience. Not a secret — it is public in the shipped JavaScript.
-  GOOGLE_CLIENT_ID: 169514872036-2gtu17rkobtapfbfi2q3901tqp354q9i.apps.googleusercontent.com
+  # Same reason as above: build-time, so Dokploy cannot supply it. A repo variable
+  # rather than a secret — the value is public in the shipped JavaScript — but it
+  # must match the GOOGLE_CLIENT_ID the backend checks against, or every sign-in
+  # is rejected as the wrong audience. Set at Settings -> Secrets and variables
+  # -> Actions -> Variables.
+  GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
 
 jobs:
   check:
@@ -68,6 +70,16 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # An unset variable would build a bundle with no client id: the Google button
+      # simply would not render, with nothing in the logs to say why.
+      - name: Require the Google client id
+        run: |
+          if [ -z "${{ env.GOOGLE_CLIENT_ID }}" ]; then
+            echo "::error::GOOGLE_CLIENT_ID repository variable is not set."
+            echo "Set it at Settings -> Secrets and variables -> Actions -> Variables."
+            exit 1
+          fi
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
