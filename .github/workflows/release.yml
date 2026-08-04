@@ -130,8 +130,27 @@ jobs:
         # already running. Per-service restarts would need a webhook per Dokploy
         # service, which is not worth the extra configuration at this size.
         run: |
-          curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
-            || { echo "Dokploy webhook failed"; exit 1; }
+          # The ref is required, not decorative: Dokploy matches it against the
+          # branch configured on the service, and a bare POST carries none — so
+          # it answers 200 with {"message":"Branch Not Match"} and deploys
+          # nothing. curl -f only inspects the status, so that refusal read as
+          # success and left production several releases behind with no red
+          # build to show it. Hence both the payload and the body check.
+          RESPONSE=$(curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -d '{"ref":"refs/heads/main"}') \
+            || { echo "::error::Dokploy webhook request failed"; exit 1; }
+
+          echo "Dokploy responded: $RESPONSE"
+
+          case "$RESPONSE" in
+            *"Not Match"*|*"error"*|*"Error"*|*"unauthorized"*|*"Unauthorized"*)
+              echo "::error::Dokploy refused the redeploy: $RESPONSE"
+              echo "The image was promoted but nothing was deployed."
+              exit 1
+              ;;
+          esac
 
       # Tagged per service: backend and frontend version independently, so a
       # bare v0.0.43 would be ambiguous about which one shipped.

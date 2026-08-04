@@ -43,8 +43,26 @@ jobs:
       # Dokploy's environment variables is still a manual edit in its UI.
       - name: Trigger Dokploy redeploy
         run: |
-          curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
-            || { echo "Dokploy webhook failed"; exit 1; }
+          # The ref is required, not decorative: Dokploy matches it against the
+          # branch configured on the service, and a bare POST carries none — so
+          # it answers 200 with {"message":"Branch Not Match"} and deploys
+          # nothing. curl -f only inspects the status, so that refusal read as
+          # success and left production several releases behind with no red
+          # build to show it. Hence both the payload and the body check.
+          RESPONSE=$(curl -fsS -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -d '{"ref":"refs/heads/main"}') \
+            || { echo "::error::Dokploy webhook request failed"; exit 1; }
+
+          echo "Dokploy responded: $RESPONSE"
+
+          case "$RESPONSE" in
+            *"Not Match"*|*"error"*|*"Error"*|*"unauthorized"*|*"Unauthorized"*)
+              echo "::error::Dokploy refused the redeploy: $RESPONSE"
+              exit 1
+              ;;
+          esac
 
       - name: Summary
         run: |
