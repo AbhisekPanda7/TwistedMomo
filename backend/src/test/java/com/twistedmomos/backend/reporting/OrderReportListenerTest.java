@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import com.twistedmomos.backend.order.event.OrderPlacedEvent;
 import com.twistedmomos.backend.reporting.entity.OrderReportLine;
 import com.twistedmomos.backend.reporting.repository.OrderReportRepository;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -112,5 +114,23 @@ class OrderReportListenerTest {
             assertThat(line.getCity()).isEqualTo("Cuttack");
             assertThat(line.getPostalCode()).isEqualTo("753014");
         });
+    }
+
+    /**
+     * The report is analytics: a future field carrying street or phone must fail here, not ship.
+     * Lombok-generated synthetic fields are filtered out.
+     */
+    @Test
+    void keepsPersonalDataOutOfTheReportEntity() {
+        assertThat(
+                        java.util.Arrays.stream(OrderReportLine.class.getDeclaredFields())
+                                .filter(f -> !isSynthetic(f))
+                                .map(Field::getName)
+                                .toList())
+                .doesNotContain("addressLine1", "addressLine2", "recipientName", "phone");
+    }
+
+    private static boolean isSynthetic(Field f) {
+        return f.isSynthetic() || f.getName().contains("$");
     }
 }
