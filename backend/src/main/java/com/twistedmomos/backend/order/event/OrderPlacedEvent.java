@@ -17,7 +17,17 @@ public record OrderPlacedEvent(
         Long userId,
         Instant placedAt,
         BigDecimal subtotal,
-        List<LineItem> items) {
+        List<LineItem> items,
+        DeliveryAddress deliveryAddress) {
 
     public record LineItem(Long menuItemId, String itemName, int quantity, BigDecimal unitPrice, BigDecimal lineTotal) {}
+
+    /** Carried on the event because a listener cannot read the order back — auth may not depend on order. */
+    public record DeliveryAddress(
+            String recipientName,
+            String phone,
+            String addressLine1,
+            String addressLine2,
+            String city,
+            String postalCode) {}
 }

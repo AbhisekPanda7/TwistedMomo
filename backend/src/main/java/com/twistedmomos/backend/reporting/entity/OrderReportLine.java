@@ -59,4 +59,11 @@ public class OrderReportLine {
 
     @Column(name = "placed_at", nullable = false)
     private Instant placedAt;
+
+    /** Delivery area only. Street lines and phone are personal data with no analytical value. */
+    @Column(length = 100)
+    private String city;
+
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
 }

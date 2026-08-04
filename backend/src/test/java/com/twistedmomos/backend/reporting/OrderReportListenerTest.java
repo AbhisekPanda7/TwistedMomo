@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.twistedmomos.backend.order.event.OrderPlacedEvent;
 import com.twistedmomos.backend.reporting.entity.OrderReportLine;
 import com.twistedmomos.backend.reporting.repository.OrderReportRepository;
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -25,6 +26,10 @@ class OrderReportListenerTest {
 
     private static final Instant PLACED_AT = Instant.parse("2026-08-04T12:00:00Z");
 
+    private static final OrderPlacedEvent.DeliveryAddress ADDRESS =
+            new OrderPlacedEvent.DeliveryAddress(
+                    "Tester", "9999999999", "1 Test St", null, "Cuttack", "753014");
+
     private static final OrderPlacedEvent EVENT = new OrderPlacedEvent(
             100L,
             7L,
@@ -34,7 +39,8 @@ class OrderReportListenerTest {
                     new OrderPlacedEvent.LineItem(
                             1L, "Veg Momo", 2, new BigDecimal("80.00"), new BigDecimal("160.00")),
                     new OrderPlacedEvent.LineItem(
-                            2L, "Chowmein", 1, new BigDecimal("100.00"), new BigDecimal("100.00"))));
+                            2L, "Chowmein", 1, new BigDecimal("100.00"), new BigDecimal("100.00"))),
+            ADDRESS);
 
     @Mock private OrderReportRepository reportRepository;
 
@@ -80,7 +86,8 @@ class OrderReportListenerTest {
         OrderPlacedEvent orphaned = new OrderPlacedEvent(
                 101L, 7L, PLACED_AT, new BigDecimal("80.00"),
                 List.of(new OrderPlacedEvent.LineItem(
-                        null, "Discontinued Momo", 1, new BigDecimal("80.00"), new BigDecimal("80.00"))));
+                        null, "Discontinued Momo", 1, new BigDecimal("80.00"), new BigDecimal("80.00"))),
+                ADDRESS);
 
         listener.on(orphaned);
 
@@ -91,5 +98,38 @@ class OrderReportListenerTest {
             assertThat(line.getMenuItemId()).isNull();
             assertThat(line.getItemName()).isEqualTo("Discontinued Momo");
         });
+    }
+
+    @Test
+    void recordsDeliveryAreaButNotTheStreetAddress() {
+        when(reportRepository.existsByOrderId(100L)).thenReturn(false);
+
+        listener.on(EVENT);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<OrderReportLine>> saved = ArgumentCaptor.forClass(List.class);
+        verify(reportRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).allSatisfy(line -> {
+            assertThat(line.getCity()).isEqualTo("Cuttack");
+            assertThat(line.getPostalCode()).isEqualTo("753014");
+        });
+    }
+
+    /**
+     * The report is analytics: a future field carrying street or phone must fail here, not ship.
+     * Lombok-generated synthetic fields are filtered out.
+     */
+    @Test
+    void keepsPersonalDataOutOfTheReportEntity() {
+        assertThat(
+                        java.util.Arrays.stream(OrderReportLine.class.getDeclaredFields())
+                                .filter(f -> !isSynthetic(f))
+                                .map(Field::getName)
+                                .toList())
+                .doesNotContain("addressLine1", "addressLine2", "recipientName", "phone");
+    }
+
+    private static boolean isSynthetic(Field f) {
+        return f.isSynthetic() || f.getName().contains("$");
     }
 }

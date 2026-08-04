@@ -23,6 +23,8 @@ import com.twistedmomos.backend.order.exception.EmailNotVerifiedException;
 import com.twistedmomos.backend.order.exception.EmptyCartException;
 import com.twistedmomos.backend.order.exception.InvalidOrderStatusTransitionException;
 import com.twistedmomos.backend.order.exception.ItemUnavailableException;
+import com.twistedmomos.backend.order.exception.MissingDeliveryAddressException;
+import com.twistedmomos.backend.auth.address.AddressService;
 import com.twistedmomos.backend.order.repository.CartRepository;
 import com.twistedmomos.backend.order.repository.OrderRepository;
 import com.twistedmomos.backend.auth.repository.UserRepository;
@@ -49,6 +51,9 @@ class OrderServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
+    private AddressService addressService;
+
+    @Mock
     private org.springframework.context.ApplicationEventPublisher events;
 
     @Spy
@@ -62,7 +67,10 @@ class OrderServiceImplTest {
     private MenuItem chowmein;
 
     private static final PlaceOrderRequest DELIVERY = new PlaceOrderRequest(
-            "Order Tester", "9999999999", "221B Baker St", null, "Metropolis", "500001", null);
+            "Order Tester", "9999999999", "221B Baker St", null, "Metropolis", "500001", null, null);
+
+    private static final PlaceOrderRequest BY_SAVED_ADDRESS = new PlaceOrderRequest(
+            null, null, null, null, null, null, "Leave at the gate", 42L);
 
     @BeforeEach
     void setUp() {
@@ -149,6 +157,43 @@ class OrderServiceImplTest {
         assertThat(response.subtotal()).isEqualByComparingTo("260.00");
         assertThat(response.recipientName()).isEqualTo("Order Tester");
         assertThat(cart.getItems()).isEmpty();
+    }
+
+    /** A saved address supplies the delivery details the request omits. */
+    @Test
+    void placeOrder_withASavedAddress_copiesItOntoTheOrder() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(cartRepository.findByUserIdWithItems(1L))
+                .thenReturn(Optional.of(cartWith(CartItem.builder().id(1L).menuItem(momo).quantity(1).build())));
+        when(addressService.findOwned(1L, 42L)).thenReturn(
+                com.twistedmomos.backend.auth.entity.UserAddress.builder()
+                        .id(42L).user(user).recipientName("Saved Name").phone("8888888888")
+                        .addressLine1("9 Saved Rd").addressLine2(null)
+                        .city("Cuttack").postalCode("753014").build());
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order order = inv.getArgument(0);
+            order.setId(100L);
+            return order;
+        });
+
+        OrderResponse response = orderService.placeOrder(1L, BY_SAVED_ADDRESS);
+
+        assertThat(response.recipientName()).isEqualTo("Saved Name");
+        assertThat(response.addressLine1()).isEqualTo("9 Saved Rd");
+        assertThat(response.notes()).isEqualTo("Leave at the gate");
+    }
+
+    /** Neither a saved address nor typed fields: nowhere to deliver. */
+    @Test
+    void placeOrder_withNoAddressAtAll_rejects() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(cartRepository.findByUserIdWithItems(1L))
+                .thenReturn(Optional.of(cartWith(CartItem.builder().id(1L).menuItem(momo).quantity(1).build())));
+
+        PlaceOrderRequest blank = new PlaceOrderRequest(null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> orderService.placeOrder(1L, blank))
+                .isInstanceOf(MissingDeliveryAddressException.class);
     }
 
     private Order orderWithStatus(OrderStatus status) {

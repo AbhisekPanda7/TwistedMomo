@@ -43,6 +43,8 @@ public class OrderReportListener {
                         .unitPrice(item.unitPrice())
                         .lineTotal(item.lineTotal())
                         .placedAt(event.placedAt())
+                        .city(event.deliveryAddress().city())
+                        .postalCode(event.deliveryAddress().postalCode())
                         .build())
                 .toList();
 

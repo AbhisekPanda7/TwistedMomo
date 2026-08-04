@@ -48,15 +48,20 @@ export type ApiOrderSummary = {
   createdAt: string;
 };
 
-export type PlaceOrderPayload = {
-  recipientName: string;
-  phone: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  postalCode: string;
-  notes?: string;
-};
+export type PlaceOrderPayload =
+  | {
+      addressId: number;
+      notes?: string;
+    }
+  | {
+      recipientName: string;
+      phone: string;
+      addressLine1: string;
+      addressLine2?: string;
+      city: string;
+      postalCode: string;
+      notes?: string;
+    };
 
 export async function placeOrder(payload: PlaceOrderPayload): Promise<ApiOrder> {
   const { data } = await api.post<ApiOrder>("/orders", payload);
