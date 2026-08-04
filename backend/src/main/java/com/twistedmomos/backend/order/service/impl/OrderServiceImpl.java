@@ -14,10 +14,12 @@ import com.twistedmomos.backend.order.entity.OrderStatus;
 import com.twistedmomos.backend.order.event.OrderPlacedEvent;
 import com.twistedmomos.backend.order.mapper.OrderMapper;
 import com.twistedmomos.backend.auth.entity.User;
+import com.twistedmomos.backend.auth.address.AddressService;
 import com.twistedmomos.backend.order.exception.EmailNotVerifiedException;
 import com.twistedmomos.backend.order.exception.EmptyCartException;
 import com.twistedmomos.backend.order.exception.InvalidOrderStatusTransitionException;
 import com.twistedmomos.backend.order.exception.ItemUnavailableException;
+import com.twistedmomos.backend.order.exception.MissingDeliveryAddressException;
 import com.twistedmomos.backend.shared.exception.ResourceNotFoundException;
 import com.twistedmomos.backend.order.repository.CartRepository;
 import com.twistedmomos.backend.order.repository.OrderRepository;
@@ -43,6 +45,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final UserRepository userRepository;
+    private final AddressService addressService;
     private final ApplicationEventPublisher events;
     private final OrderMapper orderMapper;
 
@@ -82,17 +85,41 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
+        // Either a saved address or typed fields. Bean validation cannot express
+        // "required unless addressId is set", so the choice is made here.
+        String recipientName = request.recipientName();
+        String phone = request.phone();
+        String addressLine1 = request.addressLine1();
+        String addressLine2 = request.addressLine2();
+        String city = request.city();
+        String postalCode = request.postalCode();
+
+        if (request.addressId() != null) {
+            var saved = addressService.findOwned(userId, request.addressId());
+            recipientName = saved.getRecipientName();
+            phone = saved.getPhone();
+            addressLine1 = saved.getAddressLine1();
+            addressLine2 = saved.getAddressLine2();
+            city = saved.getCity();
+            postalCode = saved.getPostalCode();
+        } else if (isBlank(recipientName) || isBlank(phone) || isBlank(addressLine1)
+                || isBlank(city) || isBlank(postalCode)) {
+            log.warn("Order rejected — no delivery address: userId={}", userId);
+            throw new MissingDeliveryAddressException(
+                    "Choose a saved address or enter a delivery address");
+        }
+
         Order order = Order.builder()
                 .user(user)
                 .status(OrderStatus.PENDING)
                 .subtotal(BigDecimal.ZERO)
                 .totalItems(0)
-                .recipientName(request.recipientName())
-                .phone(request.phone())
-                .addressLine1(request.addressLine1())
-                .addressLine2(request.addressLine2())
-                .city(request.city())
-                .postalCode(request.postalCode())
+                .recipientName(recipientName)
+                .phone(phone)
+                .addressLine1(addressLine1)
+                .addressLine2(addressLine2)
+                .city(city)
+                .postalCode(postalCode)
                 .notes(request.notes())
                 .build();
 
@@ -251,6 +278,10 @@ public class OrderServiceImpl implements OrderService {
             log.warn("Unknown order status requested: value={}", value);
             throw new InvalidOrderStatusTransitionException("Unknown order status: " + value);
         }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
 
