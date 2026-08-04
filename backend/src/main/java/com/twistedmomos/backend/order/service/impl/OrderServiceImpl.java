@@ -12,6 +12,7 @@ import com.twistedmomos.backend.order.entity.Order;
 import com.twistedmomos.backend.order.entity.OrderItem;
 import com.twistedmomos.backend.order.entity.OrderStatus;
 import com.twistedmomos.backend.auth.entity.User;
+import com.twistedmomos.backend.order.exception.EmailNotVerifiedException;
 import com.twistedmomos.backend.order.exception.EmptyCartException;
 import com.twistedmomos.backend.order.exception.InvalidOrderStatusTransitionException;
 import com.twistedmomos.backend.order.exception.ItemUnavailableException;
@@ -54,6 +55,15 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponse placeOrder(Long userId, PlaceOrderRequest request) {
         log.info("Placing order: userId={}", userId);
+
+        // Ordering is where a reachable address actually matters — we need to be able to
+        // contact them about the order. Checked before the cart so the message names the
+        // real problem instead of reporting an empty cart.
+        if (!userRepository.findEmailVerifiedById(userId).orElse(false)) {
+            log.warn("Order rejected — email not verified: userId={}", userId);
+            throw new EmailNotVerifiedException(
+                    "Confirm your email before placing an order. Check your inbox for the link.");
+        }
 
         Cart cart = cartRepository.findByUserIdWithItems(userId).orElse(null);
         if (cart == null || cart.getItems().isEmpty()) {

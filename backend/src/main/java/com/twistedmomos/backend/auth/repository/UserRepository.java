@@ -17,4 +17,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    /**
+     * Just the flag, so callers outside auth can gate on it without loading the user or
+     * reaching into the entity.
+     */
+    @Query("select u.emailVerified from User u where u.id = :userId")
+    Optional<Boolean> findEmailVerifiedById(Long userId);
 }
