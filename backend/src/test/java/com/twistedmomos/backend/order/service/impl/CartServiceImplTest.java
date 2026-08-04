@@ -29,7 +29,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import com.twistedmomos.backend.order.mapper.CartMapper;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +45,9 @@ class CartServiceImplTest {
     private MenuItemRepository menuItemRepository;
     @Mock
     private UserRepository userRepository;
+
+    @Spy
+    private CartMapper cartMapper = new CartMapper();
 
     @InjectMocks
     private CartServiceImpl cartService;

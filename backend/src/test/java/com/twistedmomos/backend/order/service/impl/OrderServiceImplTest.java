@@ -33,7 +33,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import com.twistedmomos.backend.order.mapper.OrderMapper;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +47,12 @@ class OrderServiceImplTest {
     private CartRepository cartRepository;
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher events;
+
+    @Spy
+    private OrderMapper orderMapper = new OrderMapper();
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -59,7 +67,8 @@ class OrderServiceImplTest {
     @BeforeEach
     void setUp() {
         Role role = Role.builder().id(1L).name(RoleName.CUSTOMER).build();
-        user = User.builder().id(1L).name("Order Tester").email("order.tester@example.com").roles(Set.of(role)).build();
+        user = User.builder().id(1L).name("Order Tester").email("order.tester@example.com")
+                .roles(Set.of(role)).emailVerified(true).build();
 
         Category category = Category.builder().id(1L).name("Steam").slug("steam").displayOrder(0).active(true).build();
         momo = MenuItem.builder().id(1L).category(category).name("Veg Momo").slug("veg-momo")
@@ -79,7 +88,8 @@ class OrderServiceImplTest {
     /** Verification gates ordering, not browsing — we must be able to reach them about it. */
     @Test
     void placeOrder_withAnUnverifiedEmail_rejectsBeforeTouchingTheCart() {
-        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(false));
+        user.setEmailVerified(false);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> orderService.placeOrder(1L, DELIVERY))
                 .isInstanceOf(EmailNotVerifiedException.class);
@@ -88,7 +98,7 @@ class OrderServiceImplTest {
 
     @Test
     void placeOrder_withNoCartRow_rejectsAsEmpty() {
-        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserIdWithItems(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.placeOrder(1L, DELIVERY))
@@ -97,7 +107,7 @@ class OrderServiceImplTest {
 
     @Test
     void placeOrder_withAnEmptyCart_rejects() {
-        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserIdWithItems(1L)).thenReturn(Optional.of(cartWith()));
 
         assertThatThrownBy(() -> orderService.placeOrder(1L, DELIVERY))
@@ -106,7 +116,7 @@ class OrderServiceImplTest {
 
     @Test
     void placeOrder_whenACartItemHasGoneUnavailable_rejects() {
-        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         chowmein.setAvailable(false);
         Cart cart = cartWith(CartItem.builder().id(1L).menuItem(chowmein).quantity(1).build());
         when(cartRepository.findByUserIdWithItems(1L)).thenReturn(Optional.of(cart));
@@ -117,23 +127,19 @@ class OrderServiceImplTest {
 
     @Test
     void placeOrder_snapshotsLinesAndEmptiesTheCart() {
-        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         Cart cart = cartWith(
                 CartItem.builder().id(1L).menuItem(momo).quantity(2).build(),
                 CartItem.builder().id(2L).menuItem(chowmein).quantity(1).build());
         when(cartRepository.findByUserIdWithItems(1L)).thenReturn(Optional.of(cart));
-        when(userRepository.getReferenceById(1L)).thenReturn(user);
 
-        // save() assigns an id (simulating IDENTITY generation); reloadWithDetails() then
-        // re-fetches by that id, so both stubs must resolve to the same saved instance.
-        Order[] savedHolder = new Order[1];
+        // save() assigns an id, standing in for IDENTITY generation. The response is
+        // mapped from this instance directly — placeOrder no longer re-reads it.
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order order = inv.getArgument(0);
             order.setId(100L);
-            savedHolder[0] = order;
             return order;
         });
-        when(orderRepository.findByIdWithDetails(100L)).thenAnswer(inv -> Optional.of(savedHolder[0]));
 
         OrderResponse response = orderService.placeOrder(1L, DELIVERY);
 
