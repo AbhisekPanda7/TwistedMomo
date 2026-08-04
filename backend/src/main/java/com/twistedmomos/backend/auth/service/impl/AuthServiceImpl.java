@@ -16,6 +16,7 @@ import com.twistedmomos.backend.auth.security.CustomUserDetails;
 import com.twistedmomos.backend.auth.security.JwtService;
 import com.twistedmomos.backend.auth.security.LoginRateLimiter;
 import com.twistedmomos.backend.auth.service.AuthService;
+import com.twistedmomos.backend.auth.service.EmailVerificationService;
 import com.twistedmomos.backend.auth.service.RefreshTokenService;
 import java.util.HashSet;
 import java.util.Set;
@@ -45,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final UserMapper userMapper;
     private final LoginRateLimiter loginRateLimiter;
+    private final EmailVerificationService emailVerificationService;
 
     @Override
     @Transactional
@@ -72,6 +74,8 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         user = userRepository.save(user);
         log.info("User registered: userId={} role={}", user.getId(), customerRole.getName());
+
+        emailVerificationService.sendVerificationLink(user);
 
         return buildAuthResponse(user);
     }
@@ -130,5 +134,13 @@ public class AuthServiceImpl implements AuthService {
                 "Bearer",
                 jwtService.getAccessTokenExpirationSeconds(),
                 userMapper.toResponse(user));
+    }
+
+    @Override
+    @Transactional
+    public void resendVerification(String email) {
+        // No exception when the address is unknown: a 404 here would confirm which
+        // addresses are registered. The endpoint answers 204 either way.
+        userRepository.findByEmail(email).ifPresent(emailVerificationService::sendVerificationLink);
     }
 }

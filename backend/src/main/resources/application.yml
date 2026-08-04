@@ -75,3 +75,13 @@ app:
     # filesystem) — fine for now, swap FileStorageService for S3-compatible
     # object storage before this matters in production.
     dir: ${UPLOAD_DIR:./uploads}
+
+  auth:
+    # Verification links point at the SPA, not the API.
+    frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  notification:
+    # Absent in dev, so LoggingNotificationSender takes over and no Resend
+    # account is needed locally. Set RESEND_API_KEY to send for real.
+    api-key: ${RESEND_API_KEY:}
+    from-name: ${NOTIFICATION_FROM_NAME:Twisted Momos}
+    from-email: ${NOTIFICATION_FROM_EMAIL:noreply@twistedmomos.tech}

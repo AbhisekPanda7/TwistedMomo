@@ -14,4 +14,7 @@ public interface AuthService {
     AuthResponse refresh(RefreshRequest request);
 
     void logout(RefreshRequest request);
+
+    /** Silent when the address is unknown or already verified — the caller must not learn which. */
+    void resendVerification(String email);
 }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.twistedmomos.backend.order.dto.request.PlaceOrderRequest;
@@ -18,6 +19,7 @@ import com.twistedmomos.backend.order.entity.OrderStatus;
 import com.twistedmomos.backend.auth.entity.Role;
 import com.twistedmomos.backend.auth.entity.RoleName;
 import com.twistedmomos.backend.auth.entity.User;
+import com.twistedmomos.backend.order.exception.EmailNotVerifiedException;
 import com.twistedmomos.backend.order.exception.EmptyCartException;
 import com.twistedmomos.backend.order.exception.InvalidOrderStatusTransitionException;
 import com.twistedmomos.backend.order.exception.ItemUnavailableException;
@@ -74,8 +76,19 @@ class OrderServiceImplTest {
         return cart;
     }
 
+    /** Verification gates ordering, not browsing — we must be able to reach them about it. */
+    @Test
+    void placeOrder_withAnUnverifiedEmail_rejectsBeforeTouchingTheCart() {
+        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(false));
+
+        assertThatThrownBy(() -> orderService.placeOrder(1L, DELIVERY))
+                .isInstanceOf(EmailNotVerifiedException.class);
+        verifyNoInteractions(cartRepository);
+    }
+
     @Test
     void placeOrder_withNoCartRow_rejectsAsEmpty() {
+        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
         when(cartRepository.findByUserIdWithItems(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.placeOrder(1L, DELIVERY))
@@ -84,6 +97,7 @@ class OrderServiceImplTest {
 
     @Test
     void placeOrder_withAnEmptyCart_rejects() {
+        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
         when(cartRepository.findByUserIdWithItems(1L)).thenReturn(Optional.of(cartWith()));
 
         assertThatThrownBy(() -> orderService.placeOrder(1L, DELIVERY))
@@ -92,6 +106,7 @@ class OrderServiceImplTest {
 
     @Test
     void placeOrder_whenACartItemHasGoneUnavailable_rejects() {
+        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
         chowmein.setAvailable(false);
         Cart cart = cartWith(CartItem.builder().id(1L).menuItem(chowmein).quantity(1).build());
         when(cartRepository.findByUserIdWithItems(1L)).thenReturn(Optional.of(cart));
@@ -102,6 +117,7 @@ class OrderServiceImplTest {
 
     @Test
     void placeOrder_snapshotsLinesAndEmptiesTheCart() {
+        when(userRepository.findEmailVerifiedById(1L)).thenReturn(Optional.of(true));
         Cart cart = cartWith(
                 CartItem.builder().id(1L).menuItem(momo).quantity(2).build(),
                 CartItem.builder().id(2L).menuItem(chowmein).quantity(1).build());

@@ -25,6 +25,15 @@ spring:
 app:
   jwt:
     secret: ${JWT_SECRET}
+  auth:
+    # No default: the base file falls back to localhost, which would put a dead
+    # link in every verification email.
+    frontend-base-url: ${FRONTEND_BASE_URL}
+  notification:
+    # No default either. An absent key silently swaps in the logging adapter, so
+    # registrations would succeed while no one ever receives a link.
+    api-key: ${RESEND_API_KEY}
+    from-email: ${NOTIFICATION_FROM_EMAIL}
 
 logging:
   level:
