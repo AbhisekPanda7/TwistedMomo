@@ -7,6 +7,7 @@ const tabs = [
   { to: "/admin/categories", label: "Categories", end: false },
   { to: "/admin/menu", label: "Menu", end: false },
   { to: "/admin/orders", label: "Orders", end: false },
+  { to: "/admin/users", label: "Users", end: false },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
