@@ -6,11 +6,11 @@ import PageHero from "../components/ui/PageHero";
 import Reveal from "../components/ui/Reveal";
 import { Button } from "../components/ui/Button";
 import OrderProgress from "../components/orders/OrderProgress";
-import { cancelMyOrder, fetchMyOrder, type ApiOrder } from "../lib/orders";
+import { cancelMyOrder, fetchMyOrder, type ApiOrder, type OrderStatus } from "../lib/orders";
 import { extractErrorMessage } from "../lib/cart";
 import { ORDER_STATUS_META } from "../lib/orderStatus";
 
-const TERMINAL_STATUSES = new Set(["DELIVERED", "CANCELLED"]);
+const TERMINAL_STATUSES: Set<OrderStatus> = new Set(["DELIVERED", "CANCELLED"]);
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
