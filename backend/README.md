@@ -89,16 +89,43 @@ Adding a menu item that's been disabled by an admin returns `409 Conflict`. `uni
 | GET | `/api/v1/orders` | **Bearer token required** | — | `200` `PageResponse<OrderSummaryResponse>` (caller's own orders, newest first) |
 | GET | `/api/v1/orders/{id}` | **Bearer token required**, own order only | — | `200` `OrderResponse` (`404` if it's not yours) |
 | PATCH | `/api/v1/orders/{id}/cancel` | **Bearer token required**, own order only | — | `200` `OrderResponse` (only while status is `PENDING`, else `409`) |
-| GET | `/api/v1/admin/orders?status` | **ADMIN** | — | `200` `PageResponse<OrderSummaryResponse>` (all orders, optionally filtered by status) |
-| GET | `/api/v1/admin/orders/{id}` | **ADMIN** | — | `200` `OrderResponse` (any order) |
-| PATCH | `/api/v1/admin/orders/{id}/status` | **ADMIN** | `{status}` | `200` `OrderResponse` (rejects an illegal transition or unknown status with `409`) |
 
 `PlaceOrderRequest`: `{ recipientName, phone, addressLine1, addressLine2?, city, postalCode, notes? }`
-`OrderResponse`: `{ id, status, items: OrderItemResponse[], totalItems, subtotal, recipientName, phone, addressLine1, addressLine2, city, postalCode, notes, customerName, customerEmail, createdAt, updatedAt }`
+`OrderResponse`: `{ id, status, items: OrderItemResponse[], totalItems, subtotal, recipientName, phone, addressLine1, addressLine2, city, postalCode, notes, customerName, customerEmail, createdAt, updatedAt, cancelledBy, cancellationReason }`
 `OrderItemResponse`: `{ id, menuItemId, menuItemName, quantity, unitPrice, lineTotal }` — `menuItemId` can be `null` if that menu item was later hard-deleted by an admin; the name/price/line-total snapshot on the order survives regardless.
 `OrderSummaryResponse`: `{ id, status, totalItems, subtotal, customerName, customerEmail, createdAt }`
 
 Placing an order consumes the caller's cart (clears it) and snapshots each line's name and price at that moment — later menu price changes or deletions never retroactively alter a placed order. Status transitions are enforced by an explicit allow-list per status (e.g. `PENDING → {CONFIRMED, CANCELLED}`, `DELIVERED`/`CANCELLED` are terminal); a customer's self-service cancel is a stricter subset of that (`PENDING` only) than what an admin can do.
+
+`cancelledBy` and `cancellationReason` are populated only when `status` is `CANCELLED`; `cancelledBy` is `"customer"` or `"restaurant"` depending on who cancelled it.
+
+## API — Ops (restaurant staff)
+
+Everything under `/api/v1/ops/**` requires **ADMIN or RESTAURANT_EMP**. This split exists so floor staff can run the order queue and mark items sold out mid-service without the broader ADMIN role needed for menu/category CRUD or user management.
+
+| Method | Path | Auth | Body | Response |
+|---|---|---|---|---|
+| GET | `/api/v1/ops/orders?status` | **ADMIN, RESTAURANT_EMP** | — | `200` `PageResponse<OrderSummaryResponse>` (all orders, optionally filtered by status) |
+| GET | `/api/v1/ops/orders/{id}` | **ADMIN, RESTAURANT_EMP** | — | `200` `OrderResponse` (any order) |
+| PATCH | `/api/v1/ops/orders/{id}/status` | **ADMIN, RESTAURANT_EMP** | `UpdateOrderStatusRequest` | `200` `OrderResponse` (rejects an illegal transition or unknown status with `409`) |
+| PATCH | `/api/v1/ops/menu/{id}/availability` | **ADMIN, RESTAURANT_EMP** | `{available}` | `200` `MenuItemResponse` |
+| GET | `/api/v1/ops/stream` | **ADMIN, RESTAURANT_EMP** | — | `text/event-stream` — an `order` event per status change, data is the order id; heartbeat comment every 20s |
+
+`UpdateOrderStatusRequest`: `{ status, reason? }` — `reason` is capped at 255 characters and only meaningful (and only shown to the customer) when `status` is `CANCELLED`; it is never required.
+
+The stream carries a signal, not state: on any `order` event the client should refetch the order list rather than trust the payload, so a missed push self-heals on the next event or reconnect. `EventSource` cannot attach the bearer JWT this API requires and the project does not put tokens in query strings, so the current operator UI polls `/api/v1/ops/orders` every 15s instead of consuming this stream — see `frontend/src/pages/admin/AdminOrders.tsx`.
+
+## API — Notifications
+
+Every endpoint operates on the authenticated caller's own notifications — there is no notification-by-id lookup across users.
+
+| Method | Path | Auth | Body | Response |
+|---|---|---|---|---|
+| GET | `/api/v1/notifications` | **Bearer token required** | — | `200` `PageResponse<NotificationResponse>` (caller's own, newest first) |
+| GET | `/api/v1/notifications/unread-count` | **Bearer token required** | — | `200` `{count}` |
+| PATCH | `/api/v1/notifications/{id}/read` | **Bearer token required** | — | `200` `NotificationResponse` |
+
+`NotificationResponse`: `{ id, type, title, body, orderId, read, createdAt }` — `type` is currently always `ORDER_STATUS`.
 
 ## Prerequisites
 
