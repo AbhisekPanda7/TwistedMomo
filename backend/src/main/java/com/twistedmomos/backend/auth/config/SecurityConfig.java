@@ -81,6 +81,7 @@ public class SecurityConfig {
                     auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                             .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                             .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                            .requestMatchers("/api/v1/ops/**").hasAnyRole("ADMIN", "RESTAURANT_EMP")
                             .anyRequest().authenticated();
                 })
                 // Both anchor on the same built-in filter, so they run in the order added:
