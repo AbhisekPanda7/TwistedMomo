@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.twistedmomos.backend.auth.exception.InvalidRoleException;
+import com.twistedmomos.backend.auth.exception.LastAdminException;
+import com.twistedmomos.backend.auth.exception.RoleNotGrantedException;
 import com.twistedmomos.backend.shared.exception.ResourceNotFoundException;
 import com.twistedmomos.backend.shared.config.CurrentTrace;
 import com.twistedmomos.backend.shared.dto.response.ErrorResponse;
@@ -56,5 +59,44 @@ class GlobalExceptionHandlerTest {
                 .handleNoResource(new NoResourceFoundException(HttpMethod.POST, "/api/v1", "/auth/does-not-exist"), request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void mapsLastAdminToConflict() {
+        CurrentTrace currentTrace = mock(CurrentTrace.class);
+        MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/v1/admin/users/1/roles/ADMIN");
+
+        ResponseEntity<ErrorResponse> response = new GlobalExceptionHandler(currentTrace)
+                .handleDomain(new LastAdminException("Cannot remove the last admin"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Cannot remove the last admin");
+    }
+
+    @Test
+    void mapsRoleNotGrantedToConflict() {
+        CurrentTrace currentTrace = mock(CurrentTrace.class);
+        MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/v1/admin/users/1/roles/ADMIN");
+
+        ResponseEntity<ErrorResponse> response = new GlobalExceptionHandler(currentTrace)
+                .handleDomain(new RoleNotGrantedException("User does not hold role ADMIN"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("User does not hold role ADMIN");
+    }
+
+    @Test
+    void mapsInvalidRoleToBadRequest() {
+        CurrentTrace currentTrace = mock(CurrentTrace.class);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/users/1/roles");
+
+        ResponseEntity<ErrorResponse> response = new GlobalExceptionHandler(currentTrace)
+                .handleDomain(new InvalidRoleException("Unknown role: WIZARD"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Unknown role: WIZARD");
     }
 }
