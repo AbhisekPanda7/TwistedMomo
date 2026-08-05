@@ -109,9 +109,15 @@ Everything under `/api/v1/ops/**` requires **ADMIN or RESTAURANT_EMP**. This spl
 | GET | `/api/v1/ops/orders/{id}` | **ADMIN, RESTAURANT_EMP** | — | `200` `OrderResponse` (any order) |
 | PATCH | `/api/v1/ops/orders/{id}/status` | **ADMIN, RESTAURANT_EMP** | `UpdateOrderStatusRequest` | `200` `OrderResponse` (rejects an illegal transition or unknown status with `409`) |
 | PATCH | `/api/v1/ops/menu/{id}/availability` | **ADMIN, RESTAURANT_EMP** | `{available}` | `200` `MenuItemResponse` |
-| GET | `/api/v1/ops/stream` | **ADMIN, RESTAURANT_EMP** | — | `text/event-stream` — an `order` event per status change, data is the order id; heartbeat comment every 20s |
 
 `UpdateOrderStatusRequest`: `{ status, reason? }` — `reason` is capped at 255 characters and only meaningful (and only shown to the customer) when `status` is `CANCELLED`; it is never required.
+
+The operator queue refreshes by polling this list every 15 seconds. An SSE endpoint was built
+and then removed: browser `EventSource` cannot send an `Authorization` header, and this API
+reads the bearer token from that header alone, so the connection arrives anonymous and is
+refused. Putting the token in the query string would place a working admin credential in access
+logs and browser history. Reviving it needs a short-lived, single-purpose stream token — a
+separate piece of work, not a patch.
 
 The stream carries a signal, not state: on any `order` event the client should refetch the order list rather than trust the payload, so a missed push self-heals on the next event or reconnect. `EventSource` cannot attach the bearer JWT this API requires and the project does not put tokens in query strings, so the current operator UI polls `/api/v1/ops/orders` every 15s instead of consuming this stream — see `frontend/src/pages/admin/AdminOrders.tsx`.
 
