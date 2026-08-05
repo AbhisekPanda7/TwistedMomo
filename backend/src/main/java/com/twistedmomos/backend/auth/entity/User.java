@@ -11,7 +11,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.AllArgsConstructor;
@@ -59,18 +58,6 @@ public class User extends BaseEntity {
     /** True when the user holds the given role. */
     public boolean hasRole(RoleName name) {
         return roles.stream().anyMatch(r -> r.getName() == name);
-    }
-
-    /**
-     * Highest-privilege role. Backs the singular `role` field kept on the API and in
-     * the JWT so clients written against one role keep working; authorization itself
-     * uses the full set.
-     */
-    public RoleName primaryRole() {
-        return roles.stream()
-                .map(Role::getName)
-                .max(Comparator.comparingInt(RoleName::precedence))
-                .orElse(RoleName.CUSTOMER);
     }
 
     @Column(nullable = false)

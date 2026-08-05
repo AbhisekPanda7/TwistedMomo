@@ -23,6 +23,7 @@ const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
 const AdminMenu = lazy(() => import("./pages/admin/AdminMenu"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
 const AdminOrderDetail = lazy(() => import("./pages/admin/AdminOrderDetail"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 export default function App() {
@@ -77,7 +78,7 @@ export default function App() {
                 <Route
                   path="/admin"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminDashboard />
                     </ProtectedRoute>
                   }
@@ -85,7 +86,7 @@ export default function App() {
                 <Route
                   path="/admin/categories"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminCategories />
                     </ProtectedRoute>
                   }
@@ -93,7 +94,7 @@ export default function App() {
                 <Route
                   path="/admin/menu"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminMenu />
                     </ProtectedRoute>
                   }
@@ -101,7 +102,7 @@ export default function App() {
                 <Route
                   path="/admin/orders"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminOrders />
                     </ProtectedRoute>
                   }
@@ -109,8 +110,16 @@ export default function App() {
                 <Route
                   path="/admin/orders/:id"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminOrderDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/users"
+                  element={
+                    <ProtectedRoute allow={["ADMIN"]}>
+                      <AdminUsers />
                     </ProtectedRoute>
                   }
                 />

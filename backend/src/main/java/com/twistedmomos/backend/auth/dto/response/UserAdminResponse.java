@@ -1,15 +1,14 @@
 package com.twistedmomos.backend.auth.dto.response;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.Set;
 
-public record UserResponse(
+public record UserAdminResponse(
         Long id,
         String name,
         String email,
         String phone,
-        List<String> roles,
+        Set<String> roles,
+        boolean enabled,
         boolean emailVerified,
-        Instant createdAt
-) {
-}
+        Instant createdAt) {}

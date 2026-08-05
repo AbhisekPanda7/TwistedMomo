@@ -5,10 +5,10 @@ import { hasRole } from "../../lib/tokenStorage";
 
 export default function ProtectedRoute({
   children,
-  adminOnly = false,
+  allow,
 }: {
   children: ReactNode;
-  adminOnly?: boolean;
+  allow?: string[];
 }) {
   const { user } = useAuth();
   const location = useLocation();
@@ -29,7 +29,7 @@ export default function ProtectedRoute({
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (adminOnly && !hasRole(user, "ADMIN")) {
+  if (allow && !allow.some((role) => hasRole(user, role))) {
     return <Navigate to="/" replace />;
   }
 

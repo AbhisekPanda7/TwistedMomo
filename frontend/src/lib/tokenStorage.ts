@@ -4,18 +4,12 @@ export type AuthUser = {
   email: string;
   phone: string | null;
   roles: string[];
-  /** @deprecated highest-privilege role only — read `roles`. Goes away once no client reads it. */
-  role?: string;
   createdAt: string;
 };
 
-/**
- * Tolerates a session stored before `roles` existed: that object survives a deploy in
- * localStorage, and `.includes` on the missing field would throw on first load.
- */
+// Tolerates stale sessions: localStorage persists across deploys, old objects lack roles.
 export function hasRole(user: AuthUser | null | undefined, role: string): boolean {
-  if (!user) return false;
-  return user.roles ? user.roles.includes(role) : user.role === role;
+  return user?.roles?.includes(role) ?? false;
 }
 
 export type AuthSession = {
