@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Layout, { BareLayout } from "./components/layout/Layout";
 import Loader from "./components/layout/Loader";
@@ -32,108 +32,102 @@ export default function App() {
       <AuthProvider>
         <CartProvider>
           <Loader />
-          <Layout>
-            <Suspense fallback={<div className="min-h-screen bg-ink-950" />}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/menu" element={<Menu />} />
-                <Route path="/gallery" element={<Gallery />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/verify-email" element={<VerifyEmail />} />
-                <Route
-                  path="/cart"
-                  element={
-                    <ProtectedRoute>
-                      <Cart />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/checkout"
-                  element={
-                    <ProtectedRoute>
-                      <Checkout />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/orders"
-                  element={
-                    <ProtectedRoute>
-                      <Orders />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/orders/:id"
-                  element={
-                    <ProtectedRoute>
-                      <OrderDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </Layout>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/menu" element={<Menu />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route
+                path="/cart"
+                element={
+                  <ProtectedRoute>
+                    <Cart />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/checkout"
+                element={
+                  <ProtectedRoute>
+                    <Checkout />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders"
+                element={
+                  <ProtectedRoute>
+                    <Orders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders/:id"
+                element={
+                  <ProtectedRoute>
+                    <OrderDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Route>
 
-          <BareLayout>
-            <Suspense fallback={<div className="min-h-screen bg-ink-950" />}>
-              <Routes>
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute allow={["ADMIN"]}>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/categories"
-                  element={
-                    <ProtectedRoute allow={["ADMIN"]}>
-                      <AdminCategories />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/menu"
-                  element={
-                    <ProtectedRoute allow={["ADMIN"]}>
-                      <AdminMenu />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/orders"
-                  element={
-                    <ProtectedRoute allow={["ADMIN", "RESTAURANT_EMP"]}>
-                      <AdminOrders />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/orders/:id"
-                  element={
-                    <ProtectedRoute allow={["ADMIN", "RESTAURANT_EMP"]}>
-                      <AdminOrderDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute allow={["ADMIN"]}>
-                      <AdminUsers />
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </Suspense>
-          </BareLayout>
+            <Route element={<BareLayout />}>
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/categories"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <AdminCategories />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/menu"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <AdminMenu />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/orders"
+                element={
+                  <ProtectedRoute allow={["ADMIN", "RESTAURANT_EMP"]}>
+                    <AdminOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/orders/:id"
+                element={
+                  <ProtectedRoute allow={["ADMIN", "RESTAURANT_EMP"]}>
+                    <AdminOrderDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <AdminUsers />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
+          </Routes>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
