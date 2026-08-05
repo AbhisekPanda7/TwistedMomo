@@ -211,7 +211,7 @@ class OrderServiceImplTest {
         Order order = orderWithStatus(OrderStatus.PENDING);
         lenient().when(orderRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(order));
 
-        OrderResponse response = orderService.updateStatus(1L, "CONFIRMED");
+        OrderResponse response = orderService.updateStatus(1L, "CONFIRMED", null);
 
         assertThat(response.status()).isEqualTo("CONFIRMED");
     }
@@ -221,7 +221,7 @@ class OrderServiceImplTest {
         Order order = orderWithStatus(OrderStatus.PENDING);
         lenient().when(orderRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(order));
 
-        assertThatThrownBy(() -> orderService.updateStatus(1L, "DELIVERED"))
+        assertThatThrownBy(() -> orderService.updateStatus(1L, "DELIVERED", null))
                 .isInstanceOf(InvalidOrderStatusTransitionException.class);
     }
 
@@ -230,14 +230,47 @@ class OrderServiceImplTest {
         Order order = orderWithStatus(OrderStatus.DELIVERED);
         lenient().when(orderRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(order));
 
-        assertThatThrownBy(() -> orderService.updateStatus(1L, "CANCELLED"))
+        assertThatThrownBy(() -> orderService.updateStatus(1L, "CANCELLED", null))
                 .isInstanceOf(InvalidOrderStatusTransitionException.class);
     }
 
     @Test
     void updateStatus_rejectsAnUnknownStatusValue() {
-        assertThatThrownBy(() -> orderService.updateStatus(1L, "NONSENSE"))
+        assertThatThrownBy(() -> orderService.updateStatus(1L, "NONSENSE", null))
                 .isInstanceOf(InvalidOrderStatusTransitionException.class);
+    }
+
+    @Test
+    void cancelMyOrder_recordsWhoCancelled() {
+        Order order = orderWithStatus(OrderStatus.PENDING);
+        when(orderRepository.findByIdAndUserIdWithDetails(1L, 1L)).thenReturn(Optional.of(order));
+
+        orderService.cancelMyOrder(1L, 1L);
+
+        assertThat(order.getCancelledBy()).isEqualTo("CUSTOMER");
+    }
+
+    @Test
+    void updateStatus_restaurantDeclineRecordsTheReason() {
+        Order order = orderWithStatus(OrderStatus.PENDING);
+        lenient().when(orderRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(order));
+
+        orderService.updateStatus(1L, "CANCELLED", "Out of stock");
+
+        assertThat(order.getCancelledBy()).isEqualTo("RESTAURANT");
+        assertThat(order.getCancellationReason()).isEqualTo("Out of stock");
+    }
+
+    /** Attribution belongs only to a cancellation — a normal transition must not set it. */
+    @Test
+    void updateStatus_confirmingAnOrderSetsNoAttribution() {
+        Order order = orderWithStatus(OrderStatus.PENDING);
+        lenient().when(orderRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(order));
+
+        orderService.updateStatus(1L, "CONFIRMED", null);
+
+        assertThat(order.getCancelledBy()).isNull();
+        assertThat(order.getCancellationReason()).isNull();
     }
 
     @Test

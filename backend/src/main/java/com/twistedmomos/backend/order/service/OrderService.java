@@ -20,5 +20,5 @@ public interface OrderService {
 
     OrderResponse getOrder(Long orderId);
 
-    OrderResponse updateStatus(Long orderId, String status);
+    OrderResponse updateStatus(Long orderId, String status, String reason);
 }

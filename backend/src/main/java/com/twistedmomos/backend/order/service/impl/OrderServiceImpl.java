@@ -200,6 +200,7 @@ public class OrderServiceImpl implements OrderService {
                     "This order can no longer be cancelled (current status: " + order.getStatus() + ")");
         }
         order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledBy("CUSTOMER");
         log.info("Order cancelled: orderId={} userId={} from={} to={}",
                 orderId, userId, OrderStatus.PENDING, OrderStatus.CANCELLED);
         return orderMapper.toResponse(order);
@@ -223,7 +224,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponse updateStatus(Long orderId, String status) {
+    public OrderResponse updateStatus(Long orderId, String status, String reason) {
         OrderStatus newStatus = parseStatus(status);
         Order order = reloadWithDetails(orderId);
         OrderStatus current = order.getStatus();
@@ -236,6 +237,10 @@ public class OrderServiceImpl implements OrderService {
                     "Cannot move order from " + current + " to " + newStatus);
         }
         order.setStatus(newStatus);
+        if (newStatus == OrderStatus.CANCELLED) {
+            order.setCancelledBy("RESTAURANT");
+            order.setCancellationReason(reason);
+        }
         log.info("Order status changed: orderId={} from={} to={}", orderId, current, newStatus);
         return orderMapper.toResponse(order);
     }

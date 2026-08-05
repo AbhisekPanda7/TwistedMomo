@@ -44,6 +44,6 @@ public class OpsOrderController {
     public ResponseEntity<OrderResponse> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateOrderStatusRequest request) {
-        return ResponseEntity.ok(orderService.updateStatus(id, request.status()));
+        return ResponseEntity.ok(orderService.updateStatus(id, request.status(), request.reason()));
     }
 }
