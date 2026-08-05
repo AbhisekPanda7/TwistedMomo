@@ -1,4 +1,4 @@
-package com.twistedmomos.backend.auth.service;
+package com.twistedmomos.backend.notification;
 
 /**
  * Verification email markup.
@@ -7,7 +7,7 @@ package com.twistedmomos.backend.auth.service;
  * and Gmail strips {@code <style>} blocks, so flexbox, grid and classes are unavailable.
  * Colours mirror the site's brand tokens — ink-950, gold-400, paper-50.
  */
-final class VerificationEmailTemplate {
+public final class VerificationEmailTemplate {
 
     private static final String INK = "#07070a";
     private static final String INK_CARD = "#131318";
@@ -17,7 +17,7 @@ final class VerificationEmailTemplate {
 
     private VerificationEmailTemplate() {}
 
-    static String render(String name, String link) {
+    public static String render(String name, String link) {
         return """
             <!DOCTYPE html>
             <html lang="en">

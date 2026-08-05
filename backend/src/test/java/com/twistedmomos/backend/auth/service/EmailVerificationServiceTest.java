@@ -12,10 +12,10 @@ import static org.mockito.Mockito.when;
 import com.twistedmomos.backend.auth.config.AuthLinkProperties;
 import com.twistedmomos.backend.auth.entity.EmailVerificationToken;
 import com.twistedmomos.backend.auth.entity.User;
+import com.twistedmomos.backend.auth.event.VerificationRequestedEvent;
 import com.twistedmomos.backend.auth.exception.InvalidVerificationTokenException;
 import com.twistedmomos.backend.auth.repository.EmailVerificationTokenRepository;
 import com.twistedmomos.backend.auth.repository.UserRepository;
-import com.twistedmomos.backend.notification.api.NotificationSender;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,13 +25,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationServiceTest {
 
     @Mock private EmailVerificationTokenRepository tokenRepository;
     @Mock private UserRepository userRepository;
-    @Mock private NotificationSender notificationSender;
+    @Mock private ApplicationEventPublisher events;
     @Mock private AuthLinkProperties linkProperties;
 
     @InjectMocks private EmailVerificationService service;
@@ -55,12 +56,30 @@ class EmailVerificationServiceTest {
 
         ArgumentCaptor<EmailVerificationToken> saved = ArgumentCaptor.forClass(EmailVerificationToken.class);
         verify(tokenRepository).save(saved.capture());
-        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
-        verify(notificationSender).sendEmail(anyString(), anyString(), body.capture());
+        ArgumentCaptor<VerificationRequestedEvent> published =
+                ArgumentCaptor.forClass(VerificationRequestedEvent.class);
+        verify(events).publishEvent(published.capture());
 
         String hash = saved.getValue().getTokenHash();
         assertThat(hash).hasSize(64);
-        assertThat(body.getValue()).doesNotContain(hash);
+        assertThat(published.getValue().link()).doesNotContain(hash);
+    }
+
+    /** Delivery is another module's job — this event is everything it needs, values only. */
+    @Test
+    void publishesTheLinkAddressedToTheUser() {
+        when(linkProperties.frontendBaseUrl()).thenReturn("https://twistedmomos.tech");
+
+        service.sendVerificationLink(user);
+
+        ArgumentCaptor<VerificationRequestedEvent> published =
+                ArgumentCaptor.forClass(VerificationRequestedEvent.class);
+        verify(events).publishEvent(published.capture());
+        assertThat(published.getValue().userId()).isEqualTo(1L);
+        assertThat(published.getValue().email()).isEqualTo("verify@example.com");
+        assertThat(published.getValue().name()).isEqualTo("Verify Tester");
+        assertThat(published.getValue().link())
+                .startsWith("https://twistedmomos.tech/verify-email?token=");
     }
 
     /** Issuing a new link must retire the previous one, so a resend cannot leave two live tokens. */
@@ -80,7 +99,7 @@ class EmailVerificationServiceTest {
         service.sendVerificationLink(user);
 
         verify(tokenRepository, never()).save(any());
-        verify(notificationSender, never()).sendEmail(anyString(), anyString(), anyString());
+        verify(events, never()).publishEvent(any());
     }
 
     @Test
@@ -90,7 +109,7 @@ class EmailVerificationServiceTest {
         service.sendVerificationLink(user);
 
         verify(tokenRepository, never()).save(any());
-        verify(notificationSender, never()).sendEmail(anyString(), anyString(), anyString());
+        verify(events, never()).publishEvent(any());
     }
 
     @Test
