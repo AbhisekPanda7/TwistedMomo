@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useScroll, useSpring } from "framer-motion";
 import Logo from "../ui/Logo";
 import { ButtonLink } from "../ui/Button";
 import { BagIcon } from "../ui/Icons";
+import NotificationBell from "./NotificationBell";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { hasRole } from "../../lib/tokenStorage";
@@ -94,6 +95,7 @@ export default function Navbar() {
           </nav>
 
           <div className="hidden items-center gap-5 lg:flex">
+            {user && <NotificationBell />}
             <Link to="/cart" data-cursor-hover aria-label="Cart" className="relative text-paper-100 transition-colors hover:text-gold-400">
               <BagIcon className="h-6 w-6" />
               {cartCount > 0 && (
