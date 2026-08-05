@@ -14,9 +14,9 @@ type LoginPayload = { email: string; password: string };
 
 type AuthContextValue = {
   user: AuthUser | null;
-  login: (payload: LoginPayload) => Promise<void>;
-  loginWithGoogle: (idToken: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<AuthUser>;
+  loginWithGoogle: (idToken: string) => Promise<AuthUser>;
+  register: (payload: RegisterPayload) => Promise<AuthUser>;
   logout: () => void;
 };
 
@@ -38,18 +38,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await api.post<AuthSession>("/auth/login", payload);
     storeSession(data);
     setUser(data.user);
+    // Returned because a caller needs the roles immediately: the context value it
+    // captured is from the render before this ran.
+    return data.user;
   }, []);
 
   const loginWithGoogle = useCallback(async (idToken: string) => {
     const { data } = await api.post<AuthSession>("/auth/google", { idToken });
     storeSession(data);
     setUser(data.user);
+    return data.user;
   }, []);
 
   const register = useCallback(async (payload: RegisterPayload) => {
     const { data } = await api.post<AuthSession>("/auth/register", payload);
     storeSession(data);
     setUser(data.user);
+    return data.user;
   }, []);
 
   const logout = useCallback(() => {
