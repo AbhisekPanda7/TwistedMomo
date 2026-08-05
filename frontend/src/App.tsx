@@ -77,7 +77,7 @@ export default function App() {
                 <Route
                   path="/admin"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminDashboard />
                     </ProtectedRoute>
                   }
@@ -85,7 +85,7 @@ export default function App() {
                 <Route
                   path="/admin/categories"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminCategories />
                     </ProtectedRoute>
                   }
@@ -93,7 +93,7 @@ export default function App() {
                 <Route
                   path="/admin/menu"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminMenu />
                     </ProtectedRoute>
                   }
@@ -101,7 +101,7 @@ export default function App() {
                 <Route
                   path="/admin/orders"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminOrders />
                     </ProtectedRoute>
                   }
@@ -109,7 +109,7 @@ export default function App() {
                 <Route
                   path="/admin/orders/:id"
                   element={
-                    <ProtectedRoute adminOnly>
+                    <ProtectedRoute allow={["ADMIN"]}>
                       <AdminOrderDetail />
                     </ProtectedRoute>
                   }
