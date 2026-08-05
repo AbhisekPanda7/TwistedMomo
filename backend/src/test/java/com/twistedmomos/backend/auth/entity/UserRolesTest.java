@@ -9,8 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 
 /**
  * Staff hold two roles — kitchen or delivery people also order lunch. Authorization must
- * see every one of them, while the singular `role` kept for existing clients resolves to
- * the most privileged.
+ * see every one of them.
  */
 class UserRolesTest {
 
@@ -30,13 +29,7 @@ class UserRolesTest {
         assertThat(authorities).containsExactlyInAnyOrder("ROLE_CUSTOMER", "ROLE_ADMIN");
     }
 
-    @Test
-    void primaryRoleIsTheMostPrivilegedOne() {
-        assertThat(userWith(CUSTOMER, ADMIN).primaryRole()).isEqualTo(RoleName.ADMIN);
-        assertThat(userWith(CUSTOMER).primaryRole()).isEqualTo(RoleName.CUSTOMER);
-    }
-
-    /** hasRole answers for any held role, not just the primary one. */
+    /** hasRole answers for any held role, not just one. */
     @Test
     void hasRoleSeesEveryHeldRole() {
         User staff = userWith(CUSTOMER, ADMIN);

@@ -12,7 +12,6 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 
-    @Mapping(target = "role", expression = "java(user.primaryRole().name())")
     @Mapping(target = "roles", source = "roles", qualifiedByName = "roleNames")
     UserResponse toResponse(User user);
 
