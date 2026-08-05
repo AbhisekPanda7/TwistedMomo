@@ -30,9 +30,12 @@ scrape_configs:
         target_label: 'stack'
 
     pipeline_stages:
-      # Docker wraps each line as {"log":"...","stream":"stdout","time":"..."}.
-      # Unwrap that first; the application's own JSON is inside `log`.
-      - docker: {}
+      # No `docker: {}` stage, deliberately — do not add one back. Lines arrive
+      # already unwrapped, so there is no {"log":"...","stream":...} envelope to
+      # strip, and the stage is destructive against ECS JSON: that format has its
+      # own top-level `log` object, which the stage took as the entire entry,
+      # discarding message, traceId and @timestamp. Every line reached Loki as a
+      # bare {"level","logger"} fragment until it was removed.
 
       # The application's ECS JSON. Boot's ECS formatter nests: log.level,
       # log.logger, process.thread.name, error.stack_trace — and MDC keys stay

@@ -554,6 +554,25 @@ without touching the API.
    `GRAFANA_BIND_IP` to this host's Tailscale address (`tailscale ip -4`).
 4. Deploy.
 
+**Changing `loki-config.yml` or `promtail-config.yml` needs a container restart,
+not just a deploy.** Both are bind-mounted, so their contents change without the
+container spec changing — `docker compose up -d` reports the container `Running`,
+Dokploy reports `Deployed ✅`, and the process carries on serving the file it
+started with. Promtail's `watchConfig` is not a safety net either: an editor that
+saves by rename leaves the watcher on the old inode.
+
+After deploying a config change:
+
+```bash
+docker restart <stack>-promtail-1
+docker exec <stack>-promtail-1 head -40 /etc/promtail/promtail-config.yml
+```
+
+Cost an afternoon on 2026-08-05: a corrected Promtail pipeline was merged,
+deployed and reported healthy while Loki kept storing the broken lines. Green
+output, nothing applied — the same shape as a Dokploy webhook answering 200 with
+`Branch Not Match`.
+
 **Reaching Grafana.** It binds to the Tailscale interface, so any device on the
 tailnet reaches it by MagicDNS name — no tunnel, no port forward:
 
