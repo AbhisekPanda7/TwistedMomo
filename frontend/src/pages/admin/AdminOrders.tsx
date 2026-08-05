@@ -24,6 +24,19 @@ export default function AdminOrders() {
       .catch((err) => setError(extractErrorMessage(err, "Couldn't load orders.")));
   }, [statusFilter]);
 
+  // No client can hold the ops SSE stream open (EventSource can't send the bearer JWT it
+  // requires), so this polls instead — same refetch-heals-any-gap contract, just on a timer.
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAdminOrders(statusFilter || undefined)
+        .then(setOrders)
+        .catch(() => {
+          // A background refresh failing shouldn't replace the list the operator is looking at.
+        });
+    }, 15000);
+    return () => clearInterval(intervalId);
+  }, [statusFilter]);
+
   return (
     <AdminLayout>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">

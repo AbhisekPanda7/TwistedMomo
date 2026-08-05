@@ -19,12 +19,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Every endpoint here requires ROLE_ADMIN — enforced in SecurityConfig via the /api/v1/admin/** matcher. */
-@Tag(name = "Admin — Orders", description = "Order listing and status transitions (ROLE_ADMIN)")
+/** ROLE_ADMIN or ROLE_RESTAURANT_EMP — enforced in SecurityConfig via the /api/v1/ops/** matcher. */
+@Tag(name = "Ops — Orders", description = "Order queue and status transitions (ROLE_ADMIN, ROLE_RESTAURANT_EMP)")
 @RestController
-@RequestMapping("/api/v1/admin/orders")
+@RequestMapping("/api/v1/ops/orders")
 @RequiredArgsConstructor
-public class AdminOrderController {
+public class OpsOrderController {
 
     private final OrderService orderService;
 
@@ -44,6 +44,6 @@ public class AdminOrderController {
     public ResponseEntity<OrderResponse> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateOrderStatusRequest request) {
-        return ResponseEntity.ok(orderService.updateStatus(id, request.status()));
+        return ResponseEntity.ok(orderService.updateStatus(id, request.status(), request.reason()));
     }
 }

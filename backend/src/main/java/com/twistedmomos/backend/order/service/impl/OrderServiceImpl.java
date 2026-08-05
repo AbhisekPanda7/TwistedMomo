@@ -12,6 +12,7 @@ import com.twistedmomos.backend.order.entity.Order;
 import com.twistedmomos.backend.order.entity.OrderItem;
 import com.twistedmomos.backend.order.entity.OrderStatus;
 import com.twistedmomos.backend.order.event.OrderPlacedEvent;
+import com.twistedmomos.backend.order.event.OrderStatusChangedEvent;
 import com.twistedmomos.backend.order.mapper.OrderMapper;
 import com.twistedmomos.backend.auth.entity.User;
 import com.twistedmomos.backend.auth.address.AddressService;
@@ -26,6 +27,7 @@ import com.twistedmomos.backend.order.repository.OrderRepository;
 import com.twistedmomos.backend.auth.repository.UserRepository;
 import com.twistedmomos.backend.order.service.OrderService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -200,6 +202,7 @@ public class OrderServiceImpl implements OrderService {
                     "This order can no longer be cancelled (current status: " + order.getStatus() + ")");
         }
         order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledBy("CUSTOMER");
         log.info("Order cancelled: orderId={} userId={} from={} to={}",
                 orderId, userId, OrderStatus.PENDING, OrderStatus.CANCELLED);
         return orderMapper.toResponse(order);
@@ -223,7 +226,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponse updateStatus(Long orderId, String status) {
+    public OrderResponse updateStatus(Long orderId, String status, String reason) {
         OrderStatus newStatus = parseStatus(status);
         Order order = reloadWithDetails(orderId);
         OrderStatus current = order.getStatus();
@@ -236,7 +239,17 @@ public class OrderServiceImpl implements OrderService {
                     "Cannot move order from " + current + " to " + newStatus);
         }
         order.setStatus(newStatus);
+        if (newStatus == OrderStatus.CANCELLED) {
+            order.setCancelledBy("RESTAURANT");
+            order.setCancellationReason(reason);
+        }
         log.info("Order status changed: orderId={} from={} to={}", orderId, current, newStatus);
+
+        // Published inside the transaction so Modulith writes it to event_publication with
+        // the status change — a crash before listeners run replays it instead of losing it.
+        events.publishEvent(new OrderStatusChangedEvent(
+                orderId, order.getUser().getId(), current, newStatus, Instant.now()));
+
         return orderMapper.toResponse(order);
     }
 

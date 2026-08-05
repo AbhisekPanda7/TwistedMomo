@@ -1,6 +1,5 @@
 package com.twistedmomos.backend.restaurant.controller;
 
-import com.twistedmomos.backend.restaurant.dto.request.AvailabilityRequest;
 import com.twistedmomos.backend.restaurant.dto.request.MenuItemRequest;
 import com.twistedmomos.backend.restaurant.dto.response.MenuItemResponse;
 import com.twistedmomos.backend.shared.dto.response.PageResponse;
@@ -14,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -60,11 +58,6 @@ public class AdminMenuController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         menuItemService.delete(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PatchMapping("/{id}/availability")
-    public ResponseEntity<MenuItemResponse> setAvailability(@PathVariable Long id, @Valid @RequestBody AvailabilityRequest request) {
-        return ResponseEntity.ok(menuItemService.setAvailability(id, request.available()));
     }
 
     @PostMapping(value = "/{id}/image", consumes = "multipart/form-data")

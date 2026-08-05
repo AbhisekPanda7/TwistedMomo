@@ -77,4 +77,11 @@ public class Order extends BaseEntity {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
+
+    /** CUSTOMER or RESTAURANT. Null on orders cancelled before attribution existed. */
+    @Column(name = "cancelled_by", length = 20)
+    private String cancelledBy;
+
+    @Column(name = "cancellation_reason", length = 255)
+    private String cancellationReason;
 }

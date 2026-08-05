@@ -102,7 +102,7 @@ export default function App() {
                 <Route
                   path="/admin/orders"
                   element={
-                    <ProtectedRoute allow={["ADMIN"]}>
+                    <ProtectedRoute allow={["ADMIN", "RESTAURANT_EMP"]}>
                       <AdminOrders />
                     </ProtectedRoute>
                   }
@@ -110,7 +110,7 @@ export default function App() {
                 <Route
                   path="/admin/orders/:id"
                   element={
-                    <ProtectedRoute allow={["ADMIN"]}>
+                    <ProtectedRoute allow={["ADMIN", "RESTAURANT_EMP"]}>
                       <AdminOrderDetail />
                     </ProtectedRoute>
                   }

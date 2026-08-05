@@ -33,7 +33,9 @@ public class OrderMapper {
                 order.getUser().getName(),
                 order.getUser().getEmail(),
                 order.getCreatedAt(),
-                order.getUpdatedAt());
+                order.getUpdatedAt(),
+                order.getCancelledBy(),
+                order.getCancellationReason());
     }
 
     public OrderSummaryResponse toSummary(Order order) {

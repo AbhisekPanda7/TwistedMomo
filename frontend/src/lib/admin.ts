@@ -63,8 +63,9 @@ export async function deleteMenuItem(id: number): Promise<void> {
   await api.delete(`/admin/menu/${id}`);
 }
 
+// Availability toggling moved to /ops — RESTAURANT_EMP needs it during service, unlike menu CRUD.
 export async function setMenuItemAvailability(id: number, available: boolean): Promise<ApiMenuItem> {
-  const { data } = await api.patch<ApiMenuItem>(`/admin/menu/${id}/availability`, { available });
+  const { data } = await api.patch<ApiMenuItem>(`/ops/menu/${id}/availability`, { available });
   return data;
 }
 
@@ -77,19 +78,23 @@ export async function uploadMenuItemImage(id: number, file: File): Promise<ApiMe
   return data;
 }
 
+// Orders live under /ops — ADMIN and RESTAURANT_EMP both manage the queue from here.
 export async function fetchAdminOrders(status?: OrderStatus | ""): Promise<ApiOrderSummary[]> {
-  const { data } = await api.get<ApiPageResponse<ApiOrderSummary>>("/admin/orders", {
+  const { data } = await api.get<ApiPageResponse<ApiOrderSummary>>("/ops/orders", {
     params: { size: 100, ...(status ? { status } : {}) },
   });
   return data.content;
 }
 
 export async function fetchAdminOrder(id: number): Promise<ApiOrder> {
-  const { data } = await api.get<ApiOrder>(`/admin/orders/${id}`);
+  const { data } = await api.get<ApiOrder>(`/ops/orders/${id}`);
   return data;
 }
 
-export async function updateOrderStatus(id: number, status: OrderStatus): Promise<ApiOrder> {
-  const { data } = await api.patch<ApiOrder>(`/admin/orders/${id}/status`, { status });
+export async function updateOrderStatus(id: number, status: OrderStatus, reason?: string): Promise<ApiOrder> {
+  const { data } = await api.patch<ApiOrder>(`/ops/orders/${id}/status`, {
+    status,
+    ...(reason ? { reason } : {}),
+  });
   return data;
 }

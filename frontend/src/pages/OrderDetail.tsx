@@ -5,9 +5,12 @@ import Container from "../components/ui/Container";
 import PageHero from "../components/ui/PageHero";
 import Reveal from "../components/ui/Reveal";
 import { Button } from "../components/ui/Button";
-import { cancelMyOrder, fetchMyOrder, type ApiOrder } from "../lib/orders";
+import OrderProgress from "../components/orders/OrderProgress";
+import { cancelMyOrder, fetchMyOrder, type ApiOrder, type OrderStatus } from "../lib/orders";
 import { extractErrorMessage } from "../lib/cart";
 import { ORDER_STATUS_META } from "../lib/orderStatus";
+
+const TERMINAL_STATUSES: Set<OrderStatus> = new Set(["DELIVERED", "CANCELLED"]);
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +39,20 @@ export default function OrderDetail() {
       cancelled = true;
     };
   }, [id, navigate]);
+
+  // Poll for status changes while the order is in flight; stop once it lands on a terminal status
+  // so a customer leaving the tab open doesn't poll forever.
+  useEffect(() => {
+    if (!id || !order || TERMINAL_STATUSES.has(order.status)) return;
+    const intervalId = setInterval(() => {
+      fetchMyOrder(Number(id))
+        .then(setOrder)
+        .catch(() => {
+          // A background refresh failing shouldn't replace the order the customer is looking at.
+        });
+    }, 20000);
+    return () => clearInterval(intervalId);
+  }, [id, order?.status]);
 
   async function handleCancel() {
     if (!order) return;
@@ -106,6 +123,10 @@ export default function OrderDetail() {
                 </Button>
               )}
             </div>
+          </Reveal>
+
+          <Reveal delay={0.025}>
+            <OrderProgress status={order.status} cancellationReason={order.cancellationReason} />
           </Reveal>
 
           <Reveal delay={0.05}>

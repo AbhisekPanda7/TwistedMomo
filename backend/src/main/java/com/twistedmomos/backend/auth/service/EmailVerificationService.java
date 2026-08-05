@@ -3,10 +3,10 @@ package com.twistedmomos.backend.auth.service;
 import com.twistedmomos.backend.auth.config.AuthLinkProperties;
 import com.twistedmomos.backend.auth.entity.EmailVerificationToken;
 import com.twistedmomos.backend.auth.entity.User;
+import com.twistedmomos.backend.auth.event.VerificationRequestedEvent;
 import com.twistedmomos.backend.auth.exception.InvalidVerificationTokenException;
 import com.twistedmomos.backend.auth.repository.EmailVerificationTokenRepository;
 import com.twistedmomos.backend.auth.repository.UserRepository;
-import com.twistedmomos.backend.notification.api.NotificationSender;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -17,6 +17,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +33,7 @@ public class EmailVerificationService {
 
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
-    private final NotificationSender notificationSender;
+    private final ApplicationEventPublisher events;
     private final AuthLinkProperties linkProperties;
     private final SecureRandom random = new SecureRandom();
 
@@ -66,8 +67,10 @@ public class EmailVerificationService {
                 .build());
 
         String link = "%s/verify-email?token=%s".formatted(linkProperties.frontendBaseUrl(), token);
-        notificationSender.sendEmail(
-                user.getEmail(), "Confirm your email", VerificationEmailTemplate.render(user.getName(), link));
+
+        // Published inside the transaction so Modulith writes it to event_publication with
+        // the token — a crash before the listener runs replays it instead of losing the email.
+        events.publishEvent(new VerificationRequestedEvent(user.getId(), user.getEmail(), user.getName(), link));
         log.info("Verification link issued: userId={}", user.getId());
     }
 

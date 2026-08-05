@@ -36,6 +36,8 @@ export type ApiOrder = {
   customerEmail: string;
   createdAt: string;
   updatedAt: string;
+  cancelledBy: string | null;
+  cancellationReason: string | null;
 };
 
 export type ApiOrderSummary = {

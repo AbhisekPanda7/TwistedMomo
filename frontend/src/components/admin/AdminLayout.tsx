@@ -1,16 +1,23 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import Container from "../ui/Container";
+import { useAuth } from "../../context/AuthContext";
+import { hasRole } from "../../lib/tokenStorage";
 
 const tabs = [
-  { to: "/admin", label: "Dashboard", end: true },
-  { to: "/admin/categories", label: "Categories", end: false },
-  { to: "/admin/menu", label: "Menu", end: false },
-  { to: "/admin/orders", label: "Orders", end: false },
-  { to: "/admin/users", label: "Users", end: false },
+  { to: "/admin", label: "Dashboard", end: true, adminOnly: true },
+  { to: "/admin/categories", label: "Categories", end: false, adminOnly: true },
+  { to: "/admin/menu", label: "Menu", end: false, adminOnly: true },
+  { to: "/admin/orders", label: "Orders", end: false, adminOnly: false },
+  { to: "/admin/users", label: "Users", end: false, adminOnly: true },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const isAdmin = hasRole(user, "ADMIN");
+  // Presentation only — the ProtectedRoute allow list is what actually blocks staff.
+  const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
+
   return (
     <div className="min-h-screen bg-ink-950 pb-24 pt-32 sm:pt-36">
       <Container>
@@ -19,7 +26,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             Admin <span className="text-gold-400">Console</span>
           </h1>
           <nav className="flex flex-wrap gap-2">
-            {tabs.map((tab) => (
+            {visibleTabs.map((tab) => (
               <NavLink
                 key={tab.to}
                 to={tab.to}
