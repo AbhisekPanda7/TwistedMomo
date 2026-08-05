@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
 import { toApiError, type ApiError } from "../lib/apiError";
+import { landingPathFor } from "../lib/landing";
 
 const inputClass =
   "w-full rounded-xl border border-ink-600 bg-ink-900 px-4 py-3 font-sans text-sm text-paper-50 placeholder:text-paper-200/30 outline-none transition-all duration-200 focus:border-gold-400 focus:ring-4 focus:ring-gold-400/10";
@@ -23,7 +24,9 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? "/";
+  // Only used when there is no page to return to. `from` is set by ProtectedRoute
+  // when it bounces an unauthenticated visitor.
+  const returnTo = (location.state as { from?: string } | null)?.from ?? null;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,8 +35,8 @@ export default function Login() {
     setError(null);
     setSubmitting(true);
     try {
-      await login({ email, password });
-      navigate(redirectTo, { replace: true });
+      const signedIn = await login({ email, password });
+      navigate(returnTo ?? landingPathFor(signedIn), { replace: true });
     } catch (err) {
       setError(toApiError(err, "Invalid email or password."));
     } finally {
@@ -107,8 +110,8 @@ export default function Login() {
                     setError(null);
                     setGoogleSubmitting(true);
                     try {
-                      await loginWithGoogle(idToken);
-                      navigate(redirectTo, { replace: true });
+                      const signedIn = await loginWithGoogle(idToken);
+                      navigate(returnTo ?? landingPathFor(signedIn), { replace: true });
                     } catch (err) {
                       setError(toApiError(err, "Could not sign in with Google."));
                       // Only on failure: a success unmounts this page, and clearing
