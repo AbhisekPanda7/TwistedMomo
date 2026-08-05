@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import Container from "../ui/Container";
 import { useAuth } from "../../context/AuthContext";
 import { hasRole } from "../../lib/tokenStorage";
@@ -41,6 +41,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 {tab.label}
               </NavLink>
             ))}
+            {hasRole(user, "CUSTOMER") && (
+              <Link
+                to="/"
+                data-cursor-hover
+                className="rounded-full border border-ink-600 px-4 py-2 font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60 transition-colors hover:border-gold-400/40 hover:text-gold-400"
+              >
+                Shop
+              </Link>
+            )}
           </nav>
         </div>
         {children}
