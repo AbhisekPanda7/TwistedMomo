@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen bg-ink-950 pb-24 pt-32 sm:pt-36">
+    <div className="min-h-screen bg-ink-950 pb-24 pt-12 sm:pt-16">
       <Container>
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-ink-600 pb-6">
           <h1 className="font-display text-3xl uppercase text-paper-50">

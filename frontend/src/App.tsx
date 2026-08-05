@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Layout from "./components/layout/Layout";
+import Layout, { BareLayout } from "./components/layout/Layout";
 import Loader from "./components/layout/Loader";
 import Home from "./pages/Home";
 import { AuthProvider } from "./context/AuthContext";
@@ -75,6 +75,14 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </Layout>
+
+          <BareLayout>
+            <Suspense fallback={<div className="min-h-screen bg-ink-950" />}>
+              <Routes>
                 <Route
                   path="/admin"
                   element={
@@ -123,10 +131,9 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
-          </Layout>
+          </BareLayout>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
