@@ -91,7 +91,10 @@ export async function fetchAdminOrder(id: number): Promise<ApiOrder> {
   return data;
 }
 
-export async function updateOrderStatus(id: number, status: OrderStatus): Promise<ApiOrder> {
-  const { data } = await api.patch<ApiOrder>(`/ops/orders/${id}/status`, { status });
+export async function updateOrderStatus(id: number, status: OrderStatus, reason?: string): Promise<ApiOrder> {
+  const { data } = await api.patch<ApiOrder>(`/ops/orders/${id}/status`, {
+    status,
+    ...(reason ? { reason } : {}),
+  });
   return data;
 }

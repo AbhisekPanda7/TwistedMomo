@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AdminLayout from "../../components/admin/AdminLayout";
+import Modal from "../../components/admin/Modal";
 import { Button } from "../../components/ui/Button";
 import { fetchAdminOrder, updateOrderStatus } from "../../lib/admin";
 import { extractErrorMessage } from "../../lib/cart";
 import { NEXT_STATUSES, ORDER_STATUS_META } from "../../lib/orderStatus";
 import type { ApiOrder, OrderStatus } from "../../lib/orders";
+
+const REASON_MAX_LENGTH = 255;
 
 export default function AdminOrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +16,8 @@ export default function AdminOrderDetail() {
   const [error, setError] = useState<string | null>(null);
   const [nextStatus, setNextStatus] = useState<OrderStatus | "">("");
   const [updating, setUpdating] = useState(false);
+  const [cancelReasonOpen, setCancelReasonOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   function load() {
     if (!id) return;
@@ -26,12 +31,12 @@ export default function AdminOrderDetail() {
 
   useEffect(load, [id]);
 
-  async function handleUpdateStatus() {
-    if (!order || !nextStatus) return;
+  async function submitStatusUpdate(status: OrderStatus, reason?: string) {
+    if (!order) return;
     setUpdating(true);
     setError(null);
     try {
-      const updated = await updateOrderStatus(order.id, nextStatus);
+      const updated = await updateOrderStatus(order.id, status, reason);
       setOrder(updated);
       setNextStatus("");
     } catch (err) {
@@ -39,6 +44,21 @@ export default function AdminOrderDetail() {
     } finally {
       setUpdating(false);
     }
+  }
+
+  function handleUpdateStatus() {
+    if (!nextStatus) return;
+    if (nextStatus === "CANCELLED") {
+      setCancelReason("");
+      setCancelReasonOpen(true);
+      return;
+    }
+    void submitStatusUpdate(nextStatus);
+  }
+
+  function handleConfirmCancel() {
+    setCancelReasonOpen(false);
+    void submitStatusUpdate("CANCELLED", cancelReason.trim() || undefined);
   }
 
   if (error && !order) {
@@ -164,6 +184,31 @@ export default function AdminOrderDetail() {
           </div>
         </div>
       </div>
+
+      <Modal open={cancelReasonOpen} onClose={() => setCancelReasonOpen(false)} title="Cancel Order">
+        <p className="font-sans text-sm text-paper-200/60">
+          Let the customer know why — optional, but it replaces the bare "Order cancelled" they'd see otherwise.
+        </p>
+        <textarea
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value.slice(0, REASON_MAX_LENGTH))}
+          maxLength={REASON_MAX_LENGTH}
+          rows={3}
+          placeholder="e.g. Kitchen ran out of an ingredient"
+          className="mt-4 w-full rounded-xl border border-ink-600 bg-ink-950 px-4 py-2.5 font-sans text-sm text-paper-50 outline-none focus:border-gold-400 focus:ring-4 focus:ring-gold-400/10"
+        />
+        <p className="mt-1 text-right font-sans text-xs text-paper-200/40">
+          {cancelReason.length}/{REASON_MAX_LENGTH}
+        </p>
+        <div className="mt-4 flex justify-end gap-3">
+          <Button variant="outline" onClick={() => setCancelReasonOpen(false)}>
+            Back
+          </Button>
+          <Button onClick={handleConfirmCancel} disabled={updating}>
+            {updating ? "Cancelling…" : "Confirm Cancellation"}
+          </Button>
+        </div>
+      </Modal>
     </AdminLayout>
   );
 }
