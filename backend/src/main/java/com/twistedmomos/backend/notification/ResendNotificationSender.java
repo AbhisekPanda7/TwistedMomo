@@ -12,8 +12,10 @@ import org.springframework.web.client.RestClientException;
 /**
  * Resend HTTP adapter, active once an API key is configured.
  *
- * <p>Send failures are logged, not thrown: a provider outage must not fail the
- * registration that triggered the email. The user can request a new link.
+ * <p>Send failures propagate: every caller today runs inside an {@code @ApplicationModuleListener},
+ * so a thrown exception leaves the publication incomplete and Modulith retries it — a provider
+ * outage costs a delay, not a silently lost email. If a future caller sends synchronously inside
+ * a request, it must decide its own fallback rather than relying on this class to swallow.
  */
 @Slf4j
 public class ResendNotificationSender implements NotificationSender {
@@ -42,8 +44,10 @@ public class ResendNotificationSender implements NotificationSender {
             client.post().contentType(MediaType.APPLICATION_JSON).body(payload).retrieve().toBodilessEntity();
             log.info("Email sent: subject={}", subject);
         } catch (RestClientException ex) {
-            // No recipient address in the log — see LoggingPiiTest.
-            log.error("Email send failed: subject={}", subject, ex);
+            // No recipient address or provider message in the log — see LoggingPiiTest,
+            // and Resend's error body can echo the "to" address back.
+            log.error("Email send failed: subject={}", subject);
+            throw ex;
         }
     }
 }

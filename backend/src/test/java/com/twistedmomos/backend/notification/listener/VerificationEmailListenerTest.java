@@ -1,8 +1,11 @@
 package com.twistedmomos.backend.notification.listener;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import com.twistedmomos.backend.auth.event.VerificationRequestedEvent;
@@ -13,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.RestClientException;
 
 @ExtendWith(MockitoExtension.class)
 class VerificationEmailListenerTest {
@@ -31,6 +35,21 @@ class VerificationEmailListenerTest {
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         verify(notificationSender).sendEmail(eq("verify@example.com"), anyString(), body.capture());
         assertThat(body.getValue()).contains(event.link());
+    }
+
+    /**
+     * A swallowed send failure would leave the token committed with no email ever sent and
+     * no retry. Letting it propagate leaves the publication incomplete so Modulith's outbox
+     * retries — this is what makes the class Javadoc's replay claim true.
+     */
+    @Test
+    void propagatesASendFailureSoTheOutboxRetries() {
+        var event = new VerificationRequestedEvent(
+                1L, "verify@example.com", "Verify Tester", "https://twistedmomos.tech/verify-email?token=abc");
+        doThrow(new RestClientException("Resend is down"))
+                .when(notificationSender).sendEmail(any(), any(), any());
+
+        assertThatThrownBy(() -> listener.on(event)).isInstanceOf(RestClientException.class);
     }
 }
 

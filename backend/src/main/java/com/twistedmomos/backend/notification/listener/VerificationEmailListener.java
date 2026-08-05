@@ -14,8 +14,9 @@ import org.springframework.stereotype.Component;
  * <p>{@code @ApplicationModuleListener} is async, {@code REQUIRES_NEW} and
  * {@code AFTER_COMMIT} together: the token is already stored by the time this runs, so a
  * failure here can never roll that back. Modulith writes the event to
- * {@code event_publication} in auth's own transaction, so a crash before this runs replays
- * it rather than leaving a signed-up user with no way to verify their address.
+ * {@code event_publication} in auth's own transaction, so a crash before this runs, or a
+ * thrown {@code RestClientException} from the send itself, both leave the publication
+ * incomplete and get retried — a provider outage costs a delay, not a silently unsent email.
  */
 @Slf4j
 @Component
