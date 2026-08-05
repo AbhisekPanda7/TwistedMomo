@@ -25,6 +25,12 @@ export default function Navbar() {
   const { cart } = useCart();
   const navigate = useNavigate();
   const cartCount = cart?.totalItems ?? 0;
+  // /admin (the dashboard) is ADMIN-only, so staff must land straight on the order
+  // queue — the one screen their role is actually allowed into.
+  const isAdmin = hasRole(user, "ADMIN");
+  const isRestaurantEmp = hasRole(user, "RESTAURANT_EMP");
+  const canSeeAdminLink = isAdmin || isRestaurantEmp;
+  const adminLinkPath = isAdmin ? "/admin" : "/admin/orders";
 
   function handleLogout() {
     logout();
@@ -108,9 +114,9 @@ export default function Navbar() {
                 >
                   Orders
                 </Link>
-                {hasRole(user, "ADMIN") && (
+                {canSeeAdminLink && (
                   <Link
-                    to="/admin"
+                    to={adminLinkPath}
                     data-cursor-hover
                     className="font-sans text-xs font-bold uppercase tracking-wider text-gold-400/80 transition-colors hover:text-gold-400"
                   >
@@ -239,7 +245,7 @@ export default function Navbar() {
                 </motion.div>
               )}
 
-              {hasRole(user, "ADMIN") && (
+              {canSeeAdminLink && (
                 <motion.div
                   initial={{ opacity: 0, x: -40 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -247,7 +253,7 @@ export default function Navbar() {
                   className="mt-2"
                 >
                   <NavLink
-                    to="/admin"
+                    to={adminLinkPath}
                     onClick={() => setOpen(false)}
                     className={({ isActive }) =>
                       `block font-display text-3xl uppercase tracking-wide ${
