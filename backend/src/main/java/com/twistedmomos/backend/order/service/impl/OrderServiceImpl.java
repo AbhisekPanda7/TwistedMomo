@@ -12,6 +12,7 @@ import com.twistedmomos.backend.order.entity.Order;
 import com.twistedmomos.backend.order.entity.OrderItem;
 import com.twistedmomos.backend.order.entity.OrderStatus;
 import com.twistedmomos.backend.order.event.OrderPlacedEvent;
+import com.twistedmomos.backend.order.event.OrderStatusChangedEvent;
 import com.twistedmomos.backend.order.mapper.OrderMapper;
 import com.twistedmomos.backend.auth.entity.User;
 import com.twistedmomos.backend.auth.address.AddressService;
@@ -26,6 +27,7 @@ import com.twistedmomos.backend.order.repository.OrderRepository;
 import com.twistedmomos.backend.auth.repository.UserRepository;
 import com.twistedmomos.backend.order.service.OrderService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -242,6 +244,12 @@ public class OrderServiceImpl implements OrderService {
             order.setCancellationReason(reason);
         }
         log.info("Order status changed: orderId={} from={} to={}", orderId, current, newStatus);
+
+        // Published inside the transaction so Modulith writes it to event_publication with
+        // the status change — a crash before listeners run replays it instead of losing it.
+        events.publishEvent(new OrderStatusChangedEvent(
+                orderId, order.getUser().getId(), current, newStatus, Instant.now()));
+
         return orderMapper.toResponse(order);
     }
 
