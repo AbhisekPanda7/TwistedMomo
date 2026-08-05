@@ -255,10 +255,13 @@ class OrderServiceImplTest {
         Order order = orderWithStatus(OrderStatus.PENDING);
         lenient().when(orderRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(order));
 
-        orderService.updateStatus(1L, "CANCELLED", "Out of stock");
+        OrderResponse response = orderService.updateStatus(1L, "CANCELLED", "Out of stock");
 
         assertThat(order.getCancelledBy()).isEqualTo("RESTAURANT");
         assertThat(order.getCancellationReason()).isEqualTo("Out of stock");
+        // The columns exist to be seen by the customer — prove the mapper actually surfaces them.
+        assertThat(response.cancelledBy()).isEqualTo("RESTAURANT");
+        assertThat(response.cancellationReason()).isEqualTo("Out of stock");
     }
 
     /** Attribution belongs only to a cancellation — a normal transition must not set it. */

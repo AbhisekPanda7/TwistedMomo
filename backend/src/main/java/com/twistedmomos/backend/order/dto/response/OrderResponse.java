@@ -20,6 +20,8 @@ public record OrderResponse(
         String customerName,
         String customerEmail,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String cancelledBy,
+        String cancellationReason
 ) {
 }
