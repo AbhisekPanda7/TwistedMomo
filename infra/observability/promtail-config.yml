@@ -34,13 +34,19 @@ scrape_configs:
       # Unwrap that first; the application's own JSON is inside `log`.
       - docker: {}
 
-      # The application's ECS JSON. traceId and spanId are flat top-level fields,
-      # not nested under trace.id — verified against a running container.
+      # The application's ECS JSON. Boot's ECS formatter nests: log.level,
+      # log.logger, process.thread.name, error.stack_trace — and MDC keys stay
+      # flat, so traceId/spanId are top-level. Verified against the formatter's
+      # real output, not assumed.
       - json:
           expressions:
             level: 'log.level'
             logger: 'log.logger'
+            thread: 'process.thread.name'
             msg: message
+            errType: 'error.type'
+            errMsg: 'error.message'
+            stack: 'error.stack_trace'
             traceId: traceId
             spanId: spanId
             timestamp: '"@timestamp"'
@@ -57,6 +63,7 @@ scrape_configs:
           traceId:
           spanId:
           logger:
+          thread:
 
       - timestamp:
           source: timestamp
@@ -66,5 +73,13 @@ scrape_configs:
           # logging is configured.
           action_on_failure: fudge
 
+      # Rebuild the visible line as message + exception. `output: source: msg`
+      # alone silently blanked every non-ECS line (msg unset leaves the previous
+      # stage's value) and threw away the stack trace on every error, which is
+      # the one line anyone actually greps for during an incident.
+      - template:
+          source: line
+          template: '{{ if .msg }}{{ .msg }}{{ if .stack }}{{ "\n" }}{{ .stack }}{{ end }}{{ else }}{{ .Entry }}{{ end }}'
+
       - output:
-          source: msg
+          source: line
