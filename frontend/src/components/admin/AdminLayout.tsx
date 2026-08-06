@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import Container from "../ui/Container";
 import { useAuth } from "../../context/AuthContext";
 import { hasRole } from "../../lib/tokenStorage";
@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen bg-ink-950 pb-24 pt-32 sm:pt-36">
+    <div className="min-h-screen bg-ink-950 pb-24 pt-12 sm:pt-16">
       <Container>
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-ink-600 pb-6">
           <h1 className="font-display text-3xl uppercase text-paper-50">
@@ -41,6 +41,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 {tab.label}
               </NavLink>
             ))}
+            {hasRole(user, "CUSTOMER") && (
+              <Link
+                to="/"
+                data-cursor-hover
+                className="rounded-full border border-ink-600 px-4 py-2 font-sans text-xs font-bold uppercase tracking-wider text-paper-200/60 transition-colors hover:border-gold-400/40 hover:text-gold-400"
+              >
+                Shop
+              </Link>
+            )}
           </nav>
         </div>
         {children}
